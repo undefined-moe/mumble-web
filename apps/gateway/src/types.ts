@@ -5,6 +5,7 @@ export type ServerConfig = {
   port: number
   tls?: {
     rejectUnauthorized?: boolean
+    useCertificate?: boolean
   }
 }
 

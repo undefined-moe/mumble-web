@@ -215,7 +215,7 @@ export async function connectMumbleServer(params: {
 }): Promise<ConnectedMumble> {
   const { server, username, password, tokens } = params
 
-  const gatewayCert = await getGatewayCert()
+  const gatewayCert = server.tls?.useCertificate ? await getGatewayCert() : null
 
   const tcp = await MumbleTcpClient.connect({
     host: server.host,
@@ -224,8 +224,7 @@ export async function connectMumbleServer(params: {
     username,
     ...(password != null ? { password } : {}),
     ...(tokens != null ? { tokens } : {}),
-    cert: gatewayCert.cert,
-    key: gatewayCert.key
+    ...(gatewayCert ? { cert: gatewayCert.cert, key: gatewayCert.key } : {})
   })
 
   await new Promise<void>((resolve, reject) => {

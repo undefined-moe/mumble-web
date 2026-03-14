@@ -15,6 +15,11 @@ type UserState = {
   id: number
   name: string
   channelId: number | null
+  mute?: boolean
+  deaf?: boolean
+  suppress?: boolean
+  selfMute?: boolean
+  selfDeaf?: boolean
 }
 
 type ChatItem = {
@@ -501,7 +506,13 @@ export const useGatewayStore = create<GatewayStore>()(
                 channelsById[ch.id] = { id: ch.id, name: ch.name ?? '', parentId: ch.parentId ?? null }
               }
               for (const u of msg.users ?? []) {
-                usersById[u.id] = { id: u.id, name: u.name ?? '', channelId: u.channelId ?? null }
+                const entry: UserState = { id: u.id, name: u.name ?? '', channelId: u.channelId ?? null }
+                if (u.mute != null) entry.mute = u.mute
+                if (u.deaf != null) entry.deaf = u.deaf
+                if (u.suppress != null) entry.suppress = u.suppress
+                if (u.selfMute != null) entry.selfMute = u.selfMute
+                if (u.selfDeaf != null) entry.selfDeaf = u.selfDeaf
+                usersById[u.id] = entry
               }
 
               const current = get()
@@ -556,12 +567,27 @@ export const useGatewayStore = create<GatewayStore>()(
             case 'userUpsert': {
               const u = msg.user
               if (!u) return
-              set((s) => ({
-                usersById: {
-                  ...s.usersById,
-                  [u.id]: { id: u.id, name: u.name ?? '', channelId: u.channelId ?? null },
-                },
-              }))
+              set((s) => {
+                const prev = s.usersById[u.id]
+                const next: UserState = {
+                  id: u.id,
+                  name: u.name ?? prev?.name ?? '',
+                  channelId: u.channelId ?? prev?.channelId ?? null,
+                }
+                const mute = u.mute ?? prev?.mute
+                const deaf = u.deaf ?? prev?.deaf
+                const suppress = u.suppress ?? prev?.suppress
+                const selfMute = u.selfMute ?? prev?.selfMute
+                const selfDeaf = u.selfDeaf ?? prev?.selfDeaf
+                if (mute != null) next.mute = mute
+                if (deaf != null) next.deaf = deaf
+                if (suppress != null) next.suppress = suppress
+                if (selfMute != null) next.selfMute = selfMute
+                if (selfDeaf != null) next.selfDeaf = selfDeaf
+                return {
+                  usersById: { ...s.usersById, [u.id]: next },
+                }
+              })
               return
             }
             case 'userRemove': {

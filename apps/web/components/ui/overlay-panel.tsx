@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useGatewayStore } from '../../src/state/gateway-store'
 import { cn } from '../../src/ui/cn'
-import { Users } from 'lucide-react'
+import { Users, MicOff, VolumeX } from 'lucide-react'
 
 type DocumentPiP = {
   requestWindow(options?: { width?: number; height?: number }): Promise<Window>
@@ -101,9 +101,21 @@ function SpeakerList() {
                   )}
                 </div>
                 <span className={cn('truncate', isSelf && 'font-medium')}>{u.name}</span>
-                {isSelf && (
-                  <span className="ml-auto shrink-0 text-[10px] opacity-50">You</span>
-                )}
+                <div className="ml-auto flex shrink-0 items-center gap-0.5">
+                  {(u.mute || u.suppress || (u.selfMute && !u.mute && !u.suppress)) && (
+                    <MicOff
+                      className={cn('h-3 w-3', (u.mute || u.suppress) ? 'text-red-500' : 'text-muted-foreground/70')}
+                    />
+                  )}
+                  {(u.deaf || (u.selfDeaf && !u.deaf)) && (
+                    <VolumeX
+                      className={cn('h-3 w-3', u.deaf ? 'text-red-500' : 'text-muted-foreground/70')}
+                    />
+                  )}
+                  {isSelf && (
+                    <span className="text-[10px] opacity-50 ml-0.5">You</span>
+                  )}
+                </div>
               </div>
             )
           })

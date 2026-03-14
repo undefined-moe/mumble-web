@@ -6,7 +6,8 @@
       "host": "voice.example.com",
       "port": 64738,
       "tls": {
-        "rejectUnauthorized": true
+        "rejectUnauthorized": true,
+        "useCertificate": false
       }
     }
   ]
