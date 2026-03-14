@@ -6,7 +6,8 @@ export type ServerConfig = {
   tls?: {
     rejectUnauthorized?: boolean
     useCertificate?: boolean
-  }
+  },
+  forceTcp?: boolean
 }
 
 export type ServersFile = {

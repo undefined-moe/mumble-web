@@ -262,11 +262,11 @@ export async function connectMumbleServer(params: {
     })
   })
 
-  const session = new MumbleSession({ tcp, udp: { host: server.host, port: server.port } })
+  const session = new MumbleSession({ tcp, ...(server.forceTcp ? { } : { udp: { host: server.host, port: server.port } }) })
 
   return {
     client: session,
-    voiceTransport: 'udp',
+    voiceTransport: server.forceTcp ? 'tcp-tunnel' : 'udp',
     close: () => session.close()
   }
 }
