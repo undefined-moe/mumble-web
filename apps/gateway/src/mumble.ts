@@ -1,4 +1,5 @@
 import type { ChannelState, ServerConfig, UserState } from './types.js'
+import { getGatewayCert } from './tls-cert.js'
 import { MumbleTcpClient, type MumblePermissionDenied, type MumbleReject, type MumbleTextMessage } from './mumble-protocol/client.js'
 import { TcpMessageType } from './mumble-protocol/messages.js'
 import { MumbleUdpVoiceClient } from './mumble-protocol/udp-voice-client.js'
@@ -214,13 +215,17 @@ export async function connectMumbleServer(params: {
 }): Promise<ConnectedMumble> {
   const { server, username, password, tokens } = params
 
+  const gatewayCert = await getGatewayCert()
+
   const tcp = await MumbleTcpClient.connect({
     host: server.host,
     port: server.port,
     rejectUnauthorized: server.tls?.rejectUnauthorized ?? true,
     username,
     ...(password != null ? { password } : {}),
-    ...(tokens != null ? { tokens } : {})
+    ...(tokens != null ? { tokens } : {}),
+    cert: gatewayCert.cert,
+    key: gatewayCert.key
   })
 
   await new Promise<void>((resolve, reject) => {

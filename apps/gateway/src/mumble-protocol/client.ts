@@ -108,12 +108,15 @@ export class MumbleTcpClient {
     username: string
     password?: string
     tokens?: string[]
+    cert?: string
+    key?: string
   }): Promise<MumbleTcpClient> {
     const socket = tls.connect({
       host: params.host,
       port: params.port,
       servername: params.host,
-      rejectUnauthorized: params.rejectUnauthorized
+      rejectUnauthorized: params.rejectUnauthorized,
+      ...(params.cert && params.key ? { cert: params.cert, key: params.key } : {})
     })
 
     await new Promise<void>((resolve, reject) => {
