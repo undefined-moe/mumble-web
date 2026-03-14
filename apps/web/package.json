@@ -2,9 +2,9 @@
   "name": "@mumble-web/web",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev -p 3011",
     "build": "next build",
-    "start": "next start -p 3000"
+    "start": "next start -p 3011"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

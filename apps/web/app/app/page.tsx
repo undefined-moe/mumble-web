@@ -10,9 +10,10 @@ import { cn } from '../../src/ui/cn'
 import { VoiceEngine } from '../../src/audio/voice-engine'
 import { canUseWebCodecsOpus, createWebCodecsOpusDecoder, createWebCodecsOpusEncoder } from '../../src/audio/webcodecs-opus'
 import { Rnnoise, type DenoiseState } from '@shiguredo/rnnoise-wasm'
-import { Mic, MicOff, Video, Settings, LogOut, MessageSquare, Users, Hash, Volume2, VolumeX, Activity, Send, BarChart3 } from 'lucide-react'
+import { Mic, MicOff, Video, Settings, LogOut, MessageSquare, Users, Hash, Volume2, VolumeX, Activity, Send, BarChart3, PictureInPicture2 } from 'lucide-react'
 import { MetricsPanel } from '../../components/ui/metrics-panel'
 import { SettingsDialog } from '../../components/ui/settings-dialog'
+import { OverlayPanel, isPipSupported } from '../../components/ui/overlay-panel'
 
 export default function AppPage() {
   const {
@@ -55,14 +56,16 @@ export default function AppPage() {
   const [micEnabled, setMicEnabled] = useState(false)
   const [showMetricsPanel, setShowMetricsPanel] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showOverlay, setShowOverlay] = useState(false)
+  const [pipAvailable, setPipAvailable] = useState(false)
   const [playbackStats, setPlaybackStats] = useState<{ totalQueuedMs: number; maxQueuedMs: number; streams: number } | null>(null)
   const [captureStats, setCaptureStats] = useState<{ rms: number; sending: boolean } | null>(null)
   const voiceRef = useRef<VoiceEngine | null>(null)
   const rnnoiseRef = useRef<{ state: DenoiseState; frameSize: number; buf: Float32Array } | null>(null)
 
-  // Initialize and clean up voice engine
   useEffect(() => {
     init()
+    setPipAvailable(isPipSupported())
   }, [init])
 
   useEffect(() => {
@@ -238,6 +241,7 @@ export default function AppPage() {
   }, [micEnabled, micEchoCancellation, micNoiseSuppression, micAutoGainControl, selectedInputDeviceId])
 
   const root = rootChannelId != null ? channelsById[rootChannelId] : undefined
+  const selfChannelId = selfUserId != null ? usersById[selfUserId]?.channelId ?? null : null
 
   const channelTree = useMemo(() => {
     if (rootChannelId == null) return []
@@ -327,6 +331,16 @@ export default function AppPage() {
           <Button
             variant="ghost"
             size="icon"
+            disabled={!pipAvailable}
+            onClick={() => setShowOverlay((v) => !v)}
+            title={pipAvailable ? 'Speaker Overlay (PiP)' : 'PiP not supported in this browser'}
+            className={cn("text-muted-foreground hover:text-foreground", showOverlay && "text-primary")}
+          >
+            <PictureInPicture2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setShowMetricsPanel(true)}
             title="Connection Metrics"
             className="text-muted-foreground hover:text-foreground"
@@ -358,6 +372,7 @@ export default function AppPage() {
                 const ch = channelsById[id]
                 if (!ch) return null
                 const selected = id === selectedChannelId
+                const isJoined = id === selfChannelId
                 const hasUsers = Object.values(usersById).some(u => u.channelId === id)
 
                 return (
@@ -365,13 +380,23 @@ export default function AppPage() {
                     key={id}
                     className={cn(
                       'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-                      selected ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                      selected
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : isJoined
+                          ? 'bg-accent/50 text-accent-foreground font-medium'
+                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                     )}
                     style={{ paddingLeft: 8 + depth * 12 }}
                     onClick={() => selectChannel(id)}
                   >
-                    <Volume2 className={cn("h-3.5 w-3.5 shrink-0", hasUsers ? "opacity-100" : "opacity-50")} />
+                    <Volume2 className={cn(
+                      "h-3.5 w-3.5 shrink-0",
+                      isJoined ? "text-green-500" : hasUsers ? "opacity-100" : "opacity-50"
+                    )} />
                     <span className="truncate">{ch.name || '(unnamed)'}</span>
+                    {isJoined && (
+                      <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
+                    )}
                   </button>
                 )
               })}
@@ -610,6 +635,12 @@ export default function AppPage() {
       <SettingsDialog
         open={showSettings}
         onOpenChange={setShowSettings}
+      />
+
+      {/* Speaker Overlay */}
+      <OverlayPanel
+        open={showOverlay}
+        onOpenChange={setShowOverlay}
       />
     </div>
   )
