@@ -12,16 +12,30 @@ import { cn } from '../src/ui/cn'
 
 export default function ConnectPage() {
   const router = useRouter()
-  const { gatewayStatus, status, servers, connect, connectError, init, disconnect } = useGatewayStore()
+  const {
+    gatewayStatus, status, servers, connect, connectError, init, disconnect,
+    rememberCredentials, savedCredentials, setRememberCredentials, setSavedCredentials
+  } = useGatewayStore()
 
   const [serverId, setServerId] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [tokens, setTokens] = useState('')
+  const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
     init()
   }, [init, disconnect])
+
+  useEffect(() => {
+    if (hydrated) return
+    if (!savedCredentials) { setHydrated(true); return }
+    setServerId(savedCredentials.serverId)
+    setUsername(savedCredentials.username)
+    setPassword(savedCredentials.password)
+    setTokens(savedCredentials.tokens)
+    setHydrated(true)
+  }, [savedCredentials, hydrated])
 
   useEffect(() => {
     if (status === 'connected') {
@@ -45,6 +59,12 @@ export default function ConnectPage() {
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean)
+
+    if (rememberCredentials) {
+      setSavedCredentials({ serverId, username, password, tokens })
+    } else {
+      setSavedCredentials(null)
+    }
 
     connect({
       serverId,
@@ -129,6 +149,16 @@ export default function ConnectPage() {
               placeholder="Comma,separated,tokens"
             />
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={rememberCredentials}
+              onChange={(e) => setRememberCredentials(e.target.checked)}
+              className="h-4 w-4 rounded border-input accent-primary"
+            />
+            <span className="text-xs text-muted-foreground">Remember credentials</span>
+          </label>
 
           {connectError ? (
             <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive animate-in fade-in slide-in-from-top-1">

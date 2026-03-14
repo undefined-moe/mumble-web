@@ -68,15 +68,26 @@ type VoiceOpusFrame = {
 
 type VoiceMode = 'vad' | 'ptt'
 
+type SavedCredentials = {
+  serverId: string
+  username: string
+  password: string
+  tokens: string
+}
+
 type GatewayStore = {
   gatewayStatus: GatewayStatus
   status: Status
   connectError: string | null
   servers: ServerListEntry[]
 
+  rememberCredentials: boolean
+  savedCredentials: SavedCredentials | null
+
   channelsById: Record<number, ChannelState>
   usersById: Record<number, UserState>
   speakingByUserId: Record<number, boolean>
+  selfSpeaking: boolean
   rootChannelId: number | null
   selfUserId: number | null
 
@@ -130,6 +141,9 @@ type GatewayStore = {
   setMicAutoGainControl: (val: boolean) => void
   setRnnoiseEnabled: (val: boolean) => void
   setSelectedInputDeviceId: (deviceId: string | null) => void
+  setSelfSpeaking: (speaking: boolean) => void
+  setRememberCredentials: (val: boolean) => void
+  setSavedCredentials: (creds: SavedCredentials | null) => void
 }
 
 function getGatewayUrl(): string {
@@ -241,9 +255,13 @@ export const useGatewayStore = create<GatewayStore>()(
       connectError: null,
       servers: [],
 
+      rememberCredentials: true,
+      savedCredentials: null,
+
       channelsById: {},
       usersById: {},
       speakingByUserId: {},
+      selfSpeaking: false,
       rootChannelId: null,
       selfUserId: null,
 
@@ -455,6 +473,7 @@ export const useGatewayStore = create<GatewayStore>()(
                 rootChannelId: msg.rootChannelId ?? null,
                 selectedChannelId: current.selectedChannelId ?? msg.rootChannelId ?? null,
                 speakingByUserId: {},
+                selfSpeaking: false,
               })
               return
             }
@@ -472,6 +491,7 @@ export const useGatewayStore = create<GatewayStore>()(
                 channelsById: {},
                 usersById: {},
                 speakingByUserId: {},
+                selfSpeaking: false,
                 rootChannelId: null,
                 selfUserId: null,
                 selectedChannelId: null,
@@ -695,6 +715,7 @@ export const useGatewayStore = create<GatewayStore>()(
             channelsById: {},
             usersById: {},
             speakingByUserId: {},
+            selfSpeaking: false,
             rootChannelId: null,
             selfUserId: null,
             selectedChannelId: null,
@@ -728,6 +749,7 @@ export const useGatewayStore = create<GatewayStore>()(
           channelsById: {},
           usersById: {},
           speakingByUserId: {},
+          selfSpeaking: false,
           rootChannelId: null,
           selfUserId: null,
           selectedChannelId: null,
@@ -871,6 +893,12 @@ export const useGatewayStore = create<GatewayStore>()(
       setMicAutoGainControl: (val) => set({ micAutoGainControl: val }),
       setRnnoiseEnabled: (val) => set({ rnnoiseEnabled: val }),
       setSelectedInputDeviceId: (deviceId) => set({ selectedInputDeviceId: deviceId }),
+      setSelfSpeaking: (speaking) => set({ selfSpeaking: speaking }),
+      setRememberCredentials: (val) => {
+        set({ rememberCredentials: val })
+        if (!val) set({ savedCredentials: null })
+      },
+      setSavedCredentials: (creds) => set({ savedCredentials: creds }),
     }
     },
     {
@@ -879,6 +907,8 @@ export const useGatewayStore = create<GatewayStore>()(
       partialize: (state) => ({
         servers: state.servers,
         _lastConnectArgs: state._lastConnectArgs,
+        rememberCredentials: state.rememberCredentials,
+        savedCredentials: state.savedCredentials,
         voiceMode: state.voiceMode,
         vadThreshold: state.vadThreshold,
         vadHoldTimeMs: state.vadHoldTimeMs,
