@@ -46,7 +46,7 @@ function copyStylesToWindow(target: Window) {
 }
 
 function SpeakerList() {
-  const { usersById, speakingByUserId, selfUserId, channelsById, selectedChannelId } =
+  const { usersById, speakingByUserId, selfSpeaking, selfUserId, channelsById, selectedChannelId } =
     useGatewayStore()
 
   const selfChannelId = selfUserId != null ? (usersById[selfUserId]?.channelId ?? null) : null
@@ -80,7 +80,7 @@ function SpeakerList() {
         ) : (
           users.map((u) => {
             const isSelf = u.id === selfUserId
-            const isSpeaking = speakingByUserId[u.id]
+            const isSpeaking = isSelf ? selfSpeaking : speakingByUserId[u.id]
             return (
               <div
                 key={u.id}

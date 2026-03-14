@@ -46,7 +46,9 @@ export default function AppPage() {
     micAutoGainControl,
     rnnoiseEnabled,
     setVoiceMode,
-    selectedInputDeviceId
+    selectedInputDeviceId,
+    selfSpeaking,
+    setSelfSpeaking
   } = useGatewayStore()
 
   const webCodecsAvailable = canUseWebCodecsOpus()
@@ -241,6 +243,10 @@ export default function AppPage() {
       console.warn(`[voice] failed to switch device: ${e}`)
     })
   }, [micEnabled, micEchoCancellation, micNoiseSuppression, micAutoGainControl, selectedInputDeviceId])
+
+  useEffect(() => {
+    setSelfSpeaking(captureStats?.sending ?? false)
+  }, [captureStats?.sending, setSelfSpeaking])
 
   const root = rootChannelId != null ? channelsById[rootChannelId] : undefined
   const selfChannelId = selfUserId != null ? usersById[selfUserId]?.channelId ?? null : null
@@ -458,7 +464,6 @@ export default function AppPage() {
         {/* Left: Channel Tree */}
         <aside className="hidden w-64 flex-col border-r border-border bg-card/30 md:flex">
           <div className="border-b border-border px-3 py-2 space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Channels</span>
             <div className="relative">
               <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -486,7 +491,7 @@ export default function AppPage() {
               {displayedNodes.map((node) => {
                 if (node.kind === 'user') {
                   const isSelf = node.userId === selfUserId
-                  const isSpeaking = speakingByUserId[node.userId]
+                  const isSpeaking = isSelf ? selfSpeaking : speakingByUserId[node.userId]
                   return (
                     <div
                       key={`u-${node.userId}`}
@@ -651,7 +656,7 @@ export default function AppPage() {
             <ul className="space-y-1">
               {usersInSelectedChannel.map(u => {
                 const isSelf = u.id === selfUserId
-                const isSpeaking = speakingByUserId[u.id]
+                const isSpeaking = isSelf ? selfSpeaking : speakingByUserId[u.id]
                 const hasServerMute = u.mute || u.suppress
                 const hasServerDeaf = u.deaf
                 const hasSelfMute = u.selfMute && !hasServerMute
