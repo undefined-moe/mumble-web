@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { useGatewayStore } from '../../src/state/gateway-store'
+import { useT } from '../../src/i18n'
 import { ArrowLeft, Mic, Shield, Wifi } from 'lucide-react'
 
 function clampNumber(value: number, min: number, max: number): number {
@@ -32,6 +33,7 @@ export default function SettingsPage() {
     setRnnoiseEnabled,
   } = useGatewayStore()
 
+  const t = useT()
   const uplinkMaxBufferedKb = Math.round(uplinkMaxBufferedAmountBytes / 1024)
 
   return (
@@ -39,15 +41,15 @@ export default function SettingsPage() {
       <div className="mx-auto w-full max-w-2xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button asChild variant="ghost" size="icon" title="Back">
+            <Button asChild variant="ghost" size="icon" title={t.settings.back}>
               <Link href="/app">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
-            <h1 className="text-lg font-semibold">Settings</h1>
+            <h1 className="text-lg font-semibold">{t.settings.title}</h1>
           </div>
           <Button asChild variant="secondary">
-            <Link href="/app">Back to App</Link>
+            <Link href="/app">{t.settings.backToApp}</Link>
           </Button>
         </div>
 
@@ -55,7 +57,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
               <Wifi className="h-4 w-4 text-primary" />
-              Uplink (Weak Network)
+              {t.settings.uplinkTitle}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -67,17 +69,17 @@ export default function SettingsPage() {
                 onChange={(e) => setUplinkCongestionControlEnabled(e.target.checked)}
               />
               <div className="space-y-1">
-                <div className="text-sm font-medium">Enable uplink congestion control</div>
+                <div className="text-sm font-medium">{t.settings.enableCongestionControl}</div>
                 <div className="text-xs text-muted-foreground">
-                  Keeps voice realtime by dropping queued frames when the WebSocket send buffer is backed up.
+                  {t.settings.congestionControlDesc}
                 </div>
               </div>
             </label>
 
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-1">
-                <div className="text-sm font-medium">Max WS send buffer</div>
-                <div className="text-xs text-muted-foreground">Drop/hold voice frames when buffered exceeds this threshold.</div>
+                <div className="text-sm font-medium">{t.settings.maxWsSendBuffer}</div>
+                <div className="text-xs text-muted-foreground">{t.settings.maxWsSendBufferDesc}</div>
               </div>
               <div className="flex items-center gap-2">
                 <Input
@@ -99,15 +101,15 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
               <Shield className="h-4 w-4 text-primary" />
-              Audio Quality
+              {t.settings.audioQualityTitle}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">Opus bitrate</div>
-                  <div className="text-xs text-muted-foreground">Lower bitrate can help on unstable uplinks.</div>
+                   <div className="text-sm font-medium">{t.settings.opusBitrate}</div>
+                   <div className="text-xs text-muted-foreground">{t.settings.opusBitrateDesc}</div>
                 </div>
                 <div className="text-sm font-mono">{Math.round(opusBitrate / 1000)} kbps</div>
               </div>
@@ -125,10 +127,10 @@ export default function SettingsPage() {
             <div className="h-px bg-border" />
 
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Mic className="h-4 w-4 text-primary" />
-                Microphone Processing
-              </div>
+               <div className="flex items-center gap-2 text-sm font-medium">
+                 <Mic className="h-4 w-4 text-primary" />
+                 {t.settings.micProcessing}
+               </div>
 
               <label className="flex items-start gap-3">
                 <input
@@ -138,10 +140,10 @@ export default function SettingsPage() {
                   onChange={(e) => setRnnoiseEnabled(e.target.checked)}
                 />
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">RNNoise (WASM) noise suppression</div>
-                  <div className="text-xs text-muted-foreground">
-                    Improves noisy/cheap microphones, but adds CPU usage.
-                  </div>
+                   <div className="text-sm font-medium">{t.settings.rnnoise}</div>
+                   <div className="text-xs text-muted-foreground">
+                     {t.settings.rnnoiseDesc}
+                   </div>
                 </div>
               </label>
 
@@ -153,8 +155,8 @@ export default function SettingsPage() {
                   onChange={(e) => setMicNoiseSuppression(e.target.checked)}
                 />
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">Browser noise suppression</div>
-                  <div className="text-xs text-muted-foreground">Uses built-in processing from `getUserMedia()`.</div>
+                   <div className="text-sm font-medium">{t.settings.browserNoiseSuppression}</div>
+                   <div className="text-xs text-muted-foreground">{t.settings.browserNoiseSuppressionDesc}</div>
                 </div>
               </label>
 
@@ -166,8 +168,8 @@ export default function SettingsPage() {
                   onChange={(e) => setMicEchoCancellation(e.target.checked)}
                 />
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">Echo cancellation</div>
-                  <div className="text-xs text-muted-foreground">Recommended when using speakers (not headphones).</div>
+                   <div className="text-sm font-medium">{t.settings.echoCancellation}</div>
+                   <div className="text-xs text-muted-foreground">{t.settings.echoCancellationDesc}</div>
                 </div>
               </label>
 
@@ -179,15 +181,15 @@ export default function SettingsPage() {
                   onChange={(e) => setMicAutoGainControl(e.target.checked)}
                 />
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">Auto gain control (AGC)</div>
-                  <div className="text-xs text-muted-foreground">May amplify background noise on low-quality microphones.</div>
+                   <div className="text-sm font-medium">{t.settings.agc}</div>
+                   <div className="text-xs text-muted-foreground">{t.settings.agcDesc}</div>
                 </div>
               </label>
             </div>
 
-            <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-              Changes apply next time you toggle the microphone on.
-            </div>
+             <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+               {t.settings.changesApplyNote}
+             </div>
           </CardContent>
         </Card>
       </div>

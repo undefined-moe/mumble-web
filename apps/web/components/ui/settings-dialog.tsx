@@ -7,6 +7,7 @@ import { useGatewayStore } from '../../src/state/gateway-store'
 import { Mic, Shield, Wifi, AudioWaveform, Keyboard } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog'
 import { formatKeyLabel } from '../../src/audio/use-ptt-keyboard'
+import { useT, format } from '../../src/i18n'
 
 function clampNumber(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min
@@ -21,6 +22,7 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+  const t = useT()
   const vadThreshold = useGatewayStore(s => s.vadThreshold)
   const setVadThreshold = useGatewayStore(s => s.setVadThreshold)
   const vadHoldTimeMs = useGatewayStore(s => s.vadHoldTimeMs)
@@ -85,7 +87,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
+          <DialogTitle>{t.settings.title}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -93,15 +95,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
                 <AudioWaveform className="h-4 w-4 text-primary" />
-                Voice Activation (VAD)
+                {t.settings.vadTitle}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <div className="text-sm font-medium">灵敏度</div>
-                    <div className="text-xs text-muted-foreground">值越小越灵敏，环境噪声大时可调高。</div>
+                    <div className="text-sm font-medium">{t.settings.sensitivity}</div>
+                    <div className="text-xs text-muted-foreground">{t.settings.sensitivityDesc}</div>
                   </div>
                   <div className="text-sm font-mono">{(vadThreshold * 100).toFixed(1)}%</div>
                 </div>
@@ -119,8 +121,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <div className="text-sm font-medium">保持时间</div>
-                    <div className="text-xs text-muted-foreground">声音消失后继续发送的时长，避免词语间断。</div>
+                    <div className="text-sm font-medium">{t.settings.holdTime}</div>
+                    <div className="text-xs text-muted-foreground">{t.settings.holdTimeDesc}</div>
                   </div>
                   <div className="text-sm font-mono">{vadHoldTimeMs} ms</div>
                 </div>
@@ -141,14 +143,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Keyboard className="h-4 w-4 text-primary" />
-                Push-to-Talk Shortcut
+                {t.settings.pttTitle}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">PTT 快捷键</div>
-                  <div className="text-xs text-muted-foreground">PTT 模式下按住此键发言，松开停止。</div>
+                  <div className="text-sm font-medium">{t.settings.pttKey}</div>
+                  <div className="text-xs text-muted-foreground">{t.settings.pttKeyDesc}</div>
                 </div>
                 <button
                   onClick={() => setRecordingPttKey(true)}
@@ -168,7 +170,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Wifi className="h-4 w-4 text-primary" />
-                Uplink (Weak Network)
+                {t.settings.uplinkTitle}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -180,17 +182,17 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   onChange={(e) => setUplinkCongestionControlEnabled(e.target.checked)}
                 />
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">Enable uplink congestion control</div>
+                  <div className="text-sm font-medium">{t.settings.enableCongestionControl}</div>
                   <div className="text-xs text-muted-foreground">
-                    Keeps voice realtime by dropping queued frames when the WebSocket send buffer is backed up.
+                    {t.settings.congestionControlDesc}
                   </div>
                 </div>
               </label>
 
               <div className="flex items-center justify-between gap-3">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">Max WS send buffer</div>
-                  <div className="text-xs text-muted-foreground">Drop/hold voice frames when buffered exceeds this threshold.</div>
+                  <div className="text-sm font-medium">{t.settings.maxWsSendBuffer}</div>
+                  <div className="text-xs text-muted-foreground">{t.settings.maxWsSendBufferDesc}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
@@ -212,15 +214,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Shield className="h-4 w-4 text-primary" />
-                Audio Quality
+                {t.settings.audioQualityTitle}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <div className="text-sm font-medium">Opus bitrate</div>
-                    <div className="text-xs text-muted-foreground">Lower bitrate can help on unstable uplinks.</div>
+                    <div className="text-sm font-medium">{t.settings.opusBitrate}</div>
+                    <div className="text-xs text-muted-foreground">{t.settings.opusBitrateDesc}</div>
                   </div>
                   <div className="text-sm font-mono">{Math.round(opusBitrate / 1000)} kbps</div>
                 </div>
@@ -240,23 +242,23 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Mic className="h-4 w-4 text-primary" />
-                  输入设备
+                  {t.settings.inputDevice}
                 </div>
                 <select
                   className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
                   value={selectedInputDeviceId ?? ''}
                   onChange={(e) => setSelectedInputDeviceId(e.target.value || null)}
                 >
-                  <option value="">默认设备</option>
-                  {audioInputDevices.map((d) => (
-                    <option key={d.deviceId} value={d.deviceId}>
-                      {d.label || `麦克风 (${d.deviceId.slice(0, 8)}...)`}
-                    </option>
-                  ))}
+                  <option value="">{t.settings.defaultDevice}</option>
+                   {audioInputDevices.map((d) => (
+                     <option key={d.deviceId} value={d.deviceId}>
+                       {d.label || format(t.settings.microphoneFallback, { id: d.deviceId.slice(0, 8) })}
+                     </option>
+                   ))}
                 </select>
                 {audioInputDevices.length === 0 && (
                   <div className="text-xs text-muted-foreground">
-                    未检测到设备，请先授权麦克风权限。
+                    {t.settings.noDevicesDetected}
                   </div>
                 )}
               </div>
@@ -266,7 +268,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Mic className="h-4 w-4 text-primary" />
-                  Microphone Processing
+                  {t.settings.micProcessing}
                 </div>
 
                 <label className="flex items-start gap-3">
@@ -277,9 +279,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     onChange={(e) => setRnnoiseEnabled(e.target.checked)}
                   />
                   <div className="space-y-1">
-                    <div className="text-sm font-medium">RNNoise (WASM) noise suppression</div>
+                    <div className="text-sm font-medium">{t.settings.rnnoise}</div>
                     <div className="text-xs text-muted-foreground">
-                      Improves noisy/cheap microphones, but adds CPU usage.
+                      {t.settings.rnnoiseDesc}
                     </div>
                   </div>
                 </label>
@@ -292,8 +294,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     onChange={(e) => setMicNoiseSuppression(e.target.checked)}
                   />
                   <div className="space-y-1">
-                    <div className="text-sm font-medium">Browser noise suppression</div>
-                    <div className="text-xs text-muted-foreground">Uses built-in processing from `getUserMedia()`.</div>
+                    <div className="text-sm font-medium">{t.settings.browserNoiseSuppression}</div>
+                    <div className="text-xs text-muted-foreground">{t.settings.browserNoiseSuppressionDesc}</div>
                   </div>
                 </label>
 
@@ -305,8 +307,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     onChange={(e) => setMicEchoCancellation(e.target.checked)}
                   />
                   <div className="space-y-1">
-                    <div className="text-sm font-medium">Echo cancellation</div>
-                    <div className="text-xs text-muted-foreground">Recommended when using speakers (not headphones).</div>
+                    <div className="text-sm font-medium">{t.settings.echoCancellation}</div>
+                    <div className="text-xs text-muted-foreground">{t.settings.echoCancellationDesc}</div>
                   </div>
                 </label>
 
@@ -318,14 +320,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     onChange={(e) => setMicAutoGainControl(e.target.checked)}
                   />
                   <div className="space-y-1">
-                    <div className="text-sm font-medium">Auto gain control (AGC)</div>
-                    <div className="text-xs text-muted-foreground">May amplify background noise on low-quality microphones.</div>
+                    <div className="text-sm font-medium">{t.settings.agc}</div>
+                    <div className="text-xs text-muted-foreground">{t.settings.agcDesc}</div>
                   </div>
                 </label>
               </div>
 
               <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-                Changes apply next time you toggle the microphone on.
+                {t.settings.changesApplyNote}
               </div>
             </CardContent>
           </Card>

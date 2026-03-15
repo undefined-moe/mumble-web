@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useGatewayStore } from '../../src/state/gateway-store'
 import { cn } from '../../src/ui/cn'
 import { Users, MicOff, VolumeX } from 'lucide-react'
+import { useT } from '../../src/i18n'
 
 type DocumentPiP = {
   requestWindow(options?: { width?: number; height?: number }): Promise<Window>
@@ -46,6 +47,7 @@ function copyStylesToWindow(target: Window) {
 }
 
 function SpeakerList() {
+  const t = useT()
   const usersById = useGatewayStore(s => s.usersById)
   const speakingByUserId = useGatewayStore(s => s.speakingByUserId)
   const selfSpeaking = useGatewayStore(s => s.selfSpeaking)
@@ -74,16 +76,16 @@ function SpeakerList() {
       {/* Channel */}
       <div className="flex items-center gap-2 border-b border-border/50 px-3 py-2 shrink-0">
         <Users className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-xs font-medium truncate">{channel?.name ?? 'Channel'}</span>
+         <span className="text-xs font-medium truncate">{channel?.name ?? t.overlay.channel}</span>
         <span className="ml-auto text-[10px] text-muted-foreground">{users.length}</span>
       </div>
 
       {/* Users */}
       <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
-        {users.length === 0 ? (
-          <div className="flex items-center justify-center py-8 text-xs text-muted-foreground/50">
-            No users in channel
-          </div>
+         {users.length === 0 ? (
+           <div className="flex items-center justify-center py-8 text-xs text-muted-foreground/50">
+             {t.overlay.noUsersInChannel}
+           </div>
         ) : (
           users.map((u) => {
             const isSelf = u.id === selfUserId
@@ -119,9 +121,9 @@ function SpeakerList() {
                       className={cn('h-3 w-3', u.deaf ? 'text-red-500' : 'text-muted-foreground/70')}
                     />
                   )}
-                  {isSelf && (
-                    <span className="text-[10px] opacity-50 ml-0.5">You</span>
-                  )}
+                   {isSelf && (
+                     <span className="text-[10px] opacity-50 ml-0.5">{t.overlay.you}</span>
+                   )}
                 </div>
               </div>
             )

@@ -7,6 +7,7 @@ import { LineChart } from './line-chart'
 import { Button } from './button'
 import { X, Activity, ArrowDown, ArrowUp, Wifi, Gauge, AlertTriangle } from 'lucide-react'
 import { cn } from '../../src/ui/cn'
+import { useT } from '../../src/i18n'
 
 type Metrics = {
   wsRttMs?: number
@@ -147,244 +148,242 @@ function getJitterStatus(jitter: number | undefined): 'good' | 'warn' | 'bad' | 
 }
 
 export function MetricsPanel({ metrics, playbackStats, captureStats, open, onOpenChange }: MetricsPanelProps) {
-  const history = useMetricsHistory(metrics, playbackStats, captureStats, open)
+   const t = useT()
+   const history = useMetricsHistory(metrics, playbackStats, captureStats, open)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="p-6 pb-2 border-b">
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <Activity className="h-5 w-5 text-primary" />
-            连接质量监控
-          </DialogTitle>
-        </DialogHeader>
-        <div className="p-6 pt-4 overflow-y-auto space-y-6">
-          {/* 延迟指标 */}
-          <section>
-            <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3 flex items-center gap-2">
-              <Wifi className="h-3 w-3" /> 网络延迟
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <MetricCard
-                label="WebSocket RTT"
-                value={metrics.wsRttMs != null ? Math.round(metrics.wsRttMs) : '-'}
-                unit="ms"
-                icon={Gauge}
-                status={getRttStatus(metrics.wsRttMs)}
-              />
-              <MetricCard
-                label="Mumble Server RTT"
-                value={metrics.serverRttMs != null ? Math.round(metrics.serverRttMs) : '-'}
-                unit="ms"
-                icon={Gauge}
-                status={getRttStatus(metrics.serverRttMs)}
-              />
-              <MetricCard
-                label="Jitter"
-                value={metrics.voiceDownlinkJitterMs?.toFixed(1) ?? '-'}
-                unit="ms"
-                icon={Activity}
-                status={getJitterStatus(metrics.voiceDownlinkJitterMs)}
-              />
-              <MetricCard
-                label="WS Buffer"
-                value={metrics.wsBufferedAmountBytes != null ? (metrics.wsBufferedAmountBytes / 1024).toFixed(1) : '-'}
-                unit="KB"
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="rounded-lg border bg-card/50 p-3">
-                <LineChart
-                  data={history.wsRtt}
-                  label="WebSocket RTT"
-                  unit="ms"
-                  color="hsl(var(--primary))"
-                  fillColor="hsl(var(--primary))"
-                  height={80}
-                  maxY={Math.max(200, ...history.wsRtt)}
-                />
-              </div>
-              <div className="rounded-lg border bg-card/50 p-3">
-                <LineChart
-                  data={history.jitter}
-                  label="Jitter"
-                  unit="ms"
-                  color="hsl(142, 76%, 36%)"
-                  fillColor="hsl(142, 76%, 36%)"
-                  height={80}
-                  maxY={Math.max(50, ...history.jitter)}
-                />
-              </div>
-            </div>
+         <DialogHeader className="p-6 pb-2 border-b">
+           <DialogTitle className="flex items-center gap-2 text-lg">
+             <Activity className="h-5 w-5 text-primary" />
+             {t.metrics.title}
+           </DialogTitle>
+         </DialogHeader>
+         <div className="p-6 pt-4 overflow-y-auto space-y-6">
+           <section>
+             <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3 flex items-center gap-2">
+               <Wifi className="h-3 w-3" /> {t.metrics.networkLatency}
+             </h3>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+               <MetricCard
+                 label={t.metrics.wsRtt}
+                 value={metrics.wsRttMs != null ? Math.round(metrics.wsRttMs) : '-'}
+                 unit="ms"
+                 icon={Gauge}
+                 status={getRttStatus(metrics.wsRttMs)}
+               />
+               <MetricCard
+                 label={t.metrics.mumbleServerRtt}
+                 value={metrics.serverRttMs != null ? Math.round(metrics.serverRttMs) : '-'}
+                 unit="ms"
+                 icon={Gauge}
+                 status={getRttStatus(metrics.serverRttMs)}
+               />
+               <MetricCard
+                 label={t.metrics.jitter}
+                 value={metrics.voiceDownlinkJitterMs?.toFixed(1) ?? '-'}
+                 unit="ms"
+                 icon={Activity}
+                 status={getJitterStatus(metrics.voiceDownlinkJitterMs)}
+               />
+               <MetricCard
+                 label={t.metrics.wsBuffer}
+                 value={metrics.wsBufferedAmountBytes != null ? (metrics.wsBufferedAmountBytes / 1024).toFixed(1) : '-'}
+                 unit="KB"
+               />
+             </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="rounded-lg border bg-card/50 p-3">
+                 <LineChart
+                   data={history.wsRtt}
+                   label={t.metrics.wsRtt}
+                   unit="ms"
+                   color="hsl(var(--primary))"
+                   fillColor="hsl(var(--primary))"
+                   height={80}
+                   maxY={Math.max(200, ...history.wsRtt)}
+                 />
+               </div>
+               <div className="rounded-lg border bg-card/50 p-3">
+                 <LineChart
+                   data={history.jitter}
+                   label={t.metrics.jitter}
+                   unit="ms"
+                   color="hsl(142, 76%, 36%)"
+                   fillColor="hsl(142, 76%, 36%)"
+                   height={80}
+                   maxY={Math.max(50, ...history.jitter)}
+                 />
+               </div>
+             </div>
           </section>
 
-          {/* 语音下行 */}
-          <section>
-            <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3 flex items-center gap-2">
-              <ArrowDown className="h-3 w-3" /> 语音下行（接收）
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <MetricCard
-                label="比特率"
-                value={metrics.voiceDownlinkKbps?.toFixed(1) ?? '-'}
-                unit="kbps"
-              />
-              <MetricCard
-                label="帧率"
-                value={metrics.voiceDownlinkFps?.toFixed(1) ?? '-'}
-                unit="fps"
-              />
-              <MetricCard
-                label="播放缓冲"
-                value={playbackStats?.totalQueuedMs?.toFixed(0) ?? '-'}
-                unit="ms"
-              />
-              <MetricCard
-                label="活跃流"
-                value={playbackStats?.streams ?? '-'}
-              />
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <MetricCard
-                label="总帧数"
-                value={metrics.voiceDownlinkFramesTotal?.toLocaleString() ?? '-'}
-              />
-              <MetricCard
-                label="总字节"
-                value={metrics.voiceDownlinkBytesTotal != null ? (metrics.voiceDownlinkBytesTotal / 1024).toFixed(1) : '-'}
-                unit="KB"
-              />
-              <MetricCard
-                label="丢帧"
-                value={metrics.voiceDownlinkDroppedFramesTotal ?? '-'}
-                icon={AlertTriangle}
-                status={(metrics.voiceDownlinkDroppedFramesTotal ?? 0) > 0 ? 'warn' : 'good'}
-              />
-              <MetricCard
-                label="乱序帧"
-                value={metrics.voiceDownlinkOutOfOrderFramesTotal ?? '-'}
-                status={(metrics.voiceDownlinkOutOfOrderFramesTotal ?? 0) > 10 ? 'warn' : undefined}
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="rounded-lg border bg-card/50 p-3">
-                <LineChart
-                  data={history.downlinkKbps}
-                  label="下行比特率"
-                  unit="kbps"
-                  color="hsl(221, 83%, 53%)"
-                  fillColor="hsl(221, 83%, 53%)"
-                  height={80}
-                  minY={0}
-                  maxY={Math.max(100, ...history.downlinkKbps)}
-                />
-              </div>
-              <div className="rounded-lg border bg-card/50 p-3">
-                <LineChart
-                  data={history.buffer}
-                  label="播放缓冲"
-                  unit="ms"
-                  color="hsl(262, 83%, 58%)"
-                  fillColor="hsl(262, 83%, 58%)"
-                  height={80}
-                  minY={0}
-                  maxY={Math.max(500, ...history.buffer)}
-                />
-              </div>
-            </div>
-          </section>
+           <section>
+             <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3 flex items-center gap-2">
+               <ArrowDown className="h-3 w-3" /> {t.metrics.voiceDownlink}
+             </h3>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+               <MetricCard
+                 label={t.metrics.bitrate}
+                 value={metrics.voiceDownlinkKbps?.toFixed(1) ?? '-'}
+                 unit="kbps"
+               />
+               <MetricCard
+                 label={t.metrics.frameRate}
+                 value={metrics.voiceDownlinkFps?.toFixed(1) ?? '-'}
+                 unit="fps"
+               />
+               <MetricCard
+                 label={t.metrics.playbackBuffer}
+                 value={playbackStats?.totalQueuedMs?.toFixed(0) ?? '-'}
+                 unit="ms"
+               />
+               <MetricCard
+                 label={t.metrics.activeStreams}
+                 value={playbackStats?.streams ?? '-'}
+               />
+             </div>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+               <MetricCard
+                 label={t.metrics.totalFrames}
+                 value={metrics.voiceDownlinkFramesTotal?.toLocaleString() ?? '-'}
+               />
+               <MetricCard
+                 label={t.metrics.totalBytes}
+                 value={metrics.voiceDownlinkBytesTotal != null ? (metrics.voiceDownlinkBytesTotal / 1024).toFixed(1) : '-'}
+                 unit="KB"
+               />
+               <MetricCard
+                 label={t.metrics.droppedFrames}
+                 value={metrics.voiceDownlinkDroppedFramesTotal ?? '-'}
+                 icon={AlertTriangle}
+                 status={(metrics.voiceDownlinkDroppedFramesTotal ?? 0) > 0 ? 'warn' : 'good'}
+               />
+               <MetricCard
+                 label={t.metrics.outOfOrderFrames}
+                 value={metrics.voiceDownlinkOutOfOrderFramesTotal ?? '-'}
+                 status={(metrics.voiceDownlinkOutOfOrderFramesTotal ?? 0) > 10 ? 'warn' : undefined}
+               />
+             </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="rounded-lg border bg-card/50 p-3">
+                 <LineChart
+                   data={history.downlinkKbps}
+                   label={t.metrics.downlinkBitrate}
+                   unit="kbps"
+                   color="hsl(221, 83%, 53%)"
+                   fillColor="hsl(221, 83%, 53%)"
+                   height={80}
+                   minY={0}
+                   maxY={Math.max(100, ...history.downlinkKbps)}
+                 />
+               </div>
+               <div className="rounded-lg border bg-card/50 p-3">
+                 <LineChart
+                   data={history.buffer}
+                   label={t.metrics.playbackBuffer}
+                   unit="ms"
+                   color="hsl(262, 83%, 58%)"
+                   fillColor="hsl(262, 83%, 58%)"
+                   height={80}
+                   minY={0}
+                   maxY={Math.max(500, ...history.buffer)}
+                 />
+               </div>
+             </div>
+           </section>
 
-          {/* 语音上行 */}
-          <section>
-            <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3 flex items-center gap-2">
-              <ArrowUp className="h-3 w-3" /> 语音上行（发送）
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <MetricCard
-                label="比特率"
-                value={metrics.voiceUplinkKbps?.toFixed(1) ?? '-'}
-                unit="kbps"
-              />
-              <MetricCard
-                label="帧率"
-                value={metrics.voiceUplinkFps?.toFixed(1) ?? '-'}
-                unit="fps"
-              />
-              <MetricCard
-                label="麦克风音量"
-                value={captureStats ? (captureStats.rms * 100).toFixed(1) : '-'}
-                unit="%"
-              />
-              <MetricCard
-                label="发送状态"
-                value={captureStats?.sending ? '发送中' : '静音'}
-                status={captureStats?.sending ? 'good' : undefined}
-              />
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <MetricCard
-                label="总帧数"
-                value={metrics.voiceUplinkFramesTotal?.toLocaleString() ?? '-'}
-              />
-              <MetricCard
-                label="总字节"
-                value={metrics.voiceUplinkBytesTotal != null ? (metrics.voiceUplinkBytesTotal / 1024).toFixed(1) : '-'}
-                unit="KB"
-              />
-              <MetricCard
-                label="上行队列"
-                value={metrics.uplinkQueueFrames ?? 0}
-              />
-              <MetricCard
-                label="上行丢帧"
-                value={metrics.uplinkDroppedFramesTotal ?? 0}
-                icon={AlertTriangle}
-                status={(metrics.uplinkDroppedFramesTotal ?? 0) > 0 ? 'warn' : 'good'}
-              />
-              <MetricCard
-                label="Gateway 队列"
-                value={metrics.voiceUplinkPacerQueueMs?.toFixed(0) ?? '-'}
-                unit="ms"
-              />
-              <MetricCard
-                label="Gateway 丢帧"
-                value={metrics.voiceUplinkPacerDroppedFramesTotal ?? '-'}
-                icon={AlertTriangle}
-                status={
-                  metrics.voiceUplinkPacerDroppedFramesTotal != null
-                    ? metrics.voiceUplinkPacerDroppedFramesTotal > 0
-                      ? 'warn'
-                      : 'good'
-                    : undefined
-                }
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="rounded-lg border bg-card/50 p-3">
-                <LineChart
-                  data={history.uplinkKbps}
-                  label="上行比特率"
-                  unit="kbps"
-                  color="hsl(25, 95%, 53%)"
-                  fillColor="hsl(25, 95%, 53%)"
-                  height={80}
-                  minY={0}
-                  maxY={Math.max(100, ...history.uplinkKbps)}
-                />
-              </div>
-              <div className="rounded-lg border bg-card/50 p-3">
-                <LineChart
-                  data={history.micLevel}
-                  label="麦克风电平"
-                  unit="%"
-                  color="hsl(350, 89%, 60%)"
-                  fillColor="hsl(350, 89%, 60%)"
-                  height={80}
-                  minY={0}
-                  maxY={100}
-                />
-              </div>
-            </div>
+           <section>
+             <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-3 flex items-center gap-2">
+               <ArrowUp className="h-3 w-3" /> {t.metrics.voiceUplink}
+             </h3>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+               <MetricCard
+                 label={t.metrics.bitrate}
+                 value={metrics.voiceUplinkKbps?.toFixed(1) ?? '-'}
+                 unit="kbps"
+               />
+               <MetricCard
+                 label={t.metrics.frameRate}
+                 value={metrics.voiceUplinkFps?.toFixed(1) ?? '-'}
+                 unit="fps"
+               />
+               <MetricCard
+                 label={t.metrics.micLevel}
+                 value={captureStats ? (captureStats.rms * 100).toFixed(1) : '-'}
+                 unit="%"
+               />
+               <MetricCard
+                 label={t.metrics.sendStatus}
+                 value={captureStats?.sending ? t.metrics.sending : t.metrics.silent}
+                 status={captureStats?.sending ? 'good' : undefined}
+               />
+             </div>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+               <MetricCard
+                 label={t.metrics.totalFrames}
+                 value={metrics.voiceUplinkFramesTotal?.toLocaleString() ?? '-'}
+               />
+               <MetricCard
+                 label={t.metrics.totalBytes}
+                 value={metrics.voiceUplinkBytesTotal != null ? (metrics.voiceUplinkBytesTotal / 1024).toFixed(1) : '-'}
+                 unit="KB"
+               />
+               <MetricCard
+                 label={t.metrics.uplinkQueue}
+                 value={metrics.uplinkQueueFrames ?? 0}
+               />
+               <MetricCard
+                 label={t.metrics.uplinkDropped}
+                 value={metrics.uplinkDroppedFramesTotal ?? 0}
+                 icon={AlertTriangle}
+                 status={(metrics.uplinkDroppedFramesTotal ?? 0) > 0 ? 'warn' : 'good'}
+               />
+               <MetricCard
+                 label={t.metrics.gatewayQueue}
+                 value={metrics.voiceUplinkPacerQueueMs?.toFixed(0) ?? '-'}
+                 unit="ms"
+               />
+               <MetricCard
+                 label={t.metrics.gatewayDropped}
+                 value={metrics.voiceUplinkPacerDroppedFramesTotal ?? '-'}
+                 icon={AlertTriangle}
+                 status={
+                   metrics.voiceUplinkPacerDroppedFramesTotal != null
+                     ? metrics.voiceUplinkPacerDroppedFramesTotal > 0
+                       ? 'warn'
+                       : 'good'
+                     : undefined
+                 }
+               />
+             </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="rounded-lg border bg-card/50 p-3">
+                 <LineChart
+                   data={history.uplinkKbps}
+                   label={t.metrics.uplinkBitrate}
+                   unit="kbps"
+                   color="hsl(25, 95%, 53%)"
+                   fillColor="hsl(25, 95%, 53%)"
+                   height={80}
+                   minY={0}
+                   maxY={Math.max(100, ...history.uplinkKbps)}
+                 />
+               </div>
+               <div className="rounded-lg border bg-card/50 p-3">
+                 <LineChart
+                   data={history.micLevel}
+                   label={t.metrics.micLevelChart}
+                   unit="%"
+                   color="hsl(350, 89%, 60%)"
+                   fillColor="hsl(350, 89%, 60%)"
+                   height={80}
+                   minY={0}
+                   maxY={100}
+                 />
+               </div>
+             </div>
           </section>
         </div>
       </DialogContent>

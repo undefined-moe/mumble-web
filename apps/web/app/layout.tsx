@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { HtmlLangSync } from './html-lang-sync'
 
 export const metadata: Metadata = {
   title: 'Mumble Web (Next)',
@@ -8,9 +9,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN">
-      <body className="min-h-screen bg-background text-foreground">{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen bg-background text-foreground">
+        <HtmlLangSync />
+        {children}
+      </body>
     </html>
   )
 }
-

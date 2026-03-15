@@ -8,12 +8,14 @@ import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react'
 import type { VoiceEngine } from '../../../src/audio/voice-engine'
 import { usePttKeyboard, formatKeyLabel } from '../../../src/audio/use-ptt-keyboard'
 import { canUseWebCodecsOpus } from '../../../src/audio/webcodecs-opus'
+import { useT, format } from '../../../src/i18n'
 
 interface VoiceControlBarProps {
   voiceRef: RefObject<VoiceEngine | null>
 }
 
 export function VoiceControlBar({ voiceRef }: VoiceControlBarProps) {
+  const t = useT()
   const status = useGatewayStore(s => s.status)
   const voiceMode = useGatewayStore(s => s.voiceMode)
   const setVoiceMode = useGatewayStore(s => s.setVoiceMode)
@@ -86,7 +88,7 @@ export function VoiceControlBar({ voiceRef }: VoiceControlBarProps) {
             }}
           >
             {muted ? <VolumeX className="mr-2 h-4 w-4" /> : <Volume2 className="mr-2 h-4 w-4" />}
-            {muted ? 'Muted' : 'Unmuted'}
+             {muted ? t.voice.muted : t.voice.unmuted}
           </Button>
 
           <div className="h-8 w-[1px] bg-border" />
@@ -111,9 +113,9 @@ export function VoiceControlBar({ voiceRef }: VoiceControlBarProps) {
 
                   await voiceRef.current?.enableMic(options)
                   setMicEnabled(true)
-                } catch (e) {
-                  alert(`Failed to access microphone: ${e}`)
-                }
+                 } catch (e) {
+                   alert(format(t.voice.micAccessFailed, { error: String(e) }))
+                 }
               }
             }}
           >
@@ -123,7 +125,7 @@ export function VoiceControlBar({ voiceRef }: VoiceControlBarProps) {
           {micEnabled && (
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium uppercase text-muted-foreground w-8">Mode</span>
+                <span className="text-[10px] font-medium uppercase text-muted-foreground w-8">{t.voice.mode}</span>
                 <div className="flex rounded-md border border-input p-0.5">
                   <button
                     onClick={() => setVoiceMode('vad')}
@@ -148,9 +150,9 @@ export function VoiceControlBar({ voiceRef }: VoiceControlBarProps) {
                     onPointerDown={() => voiceRef.current?.setPttActive(true)}
                     onPointerUp={() => voiceRef.current?.setPttActive(false)}
                     onPointerLeave={() => voiceRef.current?.setPttActive(false)}
-                  >
-                    Hold to Talk
-                  </Button>
+                   >
+                     {t.voice.holdToTalk}
+                   </Button>
                   <kbd className="inline-flex h-5 items-center rounded border border-input bg-muted px-1.5 text-[10px] font-mono text-muted-foreground">
                     {formatKeyLabel(pttKey)}
                   </kbd>
@@ -162,13 +164,13 @@ export function VoiceControlBar({ voiceRef }: VoiceControlBarProps) {
 
         <div className="hidden sm:flex items-center gap-4 text-xs text-muted-foreground">
           <div className="flex flex-col items-end">
-            <span>Buffer: {playbackTotalQueuedMs != null ? `${playbackTotalQueuedMs}ms` : '-'}</span>
-            <span className="text-[10px] opacity-70">Jitter: {voiceDownlinkJitterMs ?? 0}ms</span>
+             <span>{t.voice.buffer}: {playbackTotalQueuedMs != null ? `${playbackTotalQueuedMs}ms` : '-'}</span>
+             <span className="text-[10px] opacity-70">{t.voice.jitter}: {voiceDownlinkJitterMs ?? 0}ms</span>
           </div>
           <div className="h-8 w-[1px] bg-border" />
           <div className="flex flex-col items-end">
-            <span>Mic: {captureRms != null ? `${(captureRms * 100).toFixed(1)}%` : '-'}</span>
-            <span className="text-[10px] opacity-70">{captureSending ? 'Sending' : 'Silent'}</span>
+             <span>{t.voice.mic}: {captureRms != null ? `${(captureRms * 100).toFixed(1)}%` : '-'}</span>
+             <span className="text-[10px] opacity-70">{captureSending ? t.voice.sending : t.voice.silent}</span>
           </div>
         </div>
       </div>

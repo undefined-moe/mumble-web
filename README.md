@@ -5,7 +5,32 @@
 - 浏览器仅连接网关（WebSocket），**不使用 WebRTC**
 - 网关连接白名单内的 Mumble 服务器（TCP/TLS 控制面 + 语音通过协议内 `UDPTunnel` 透传）
 
-实现细节与里程碑见 `REWRITE_PLAN.md`。
+## 支持的功能
+
+### 连接与认证
+
+- 用户名 / 密码 / Access Token 认证 / 凭据记忆（localStorage 持久化，可关闭）
+- 自动重连：Gateway WebSocket 断线指数退避重连 + Mumble 会话级重连
+
+### Mumble 协议支持
+
+- TCP/TLS 控制面：`Version`、`Authenticate`、`ServerSync`、`ChannelState`、`ChannelRemove`、`UserState`、`UserRemove`、`TextMessage`、`Ping`、`Reject`、`PermissionDenied`、`PermissionQuery`、`ContextActionModify`、`ServerConfig`、`CodecVersion`、`CryptSetup`
+- 语音传输：**UDP 优先**（AES-128-OCB2 加密 + 抗重放），UDP 不可达时自动回退到 TCP 隧道（`UDPTunnel`）
+- 语音帧去重：在 UDP / TCP 通道切换期间防止重复帧
+- 自动生成客户端 TLS 证书（适配 `certrequired=true` 的服务器）
+
+### 语音引擎
+
+- **Opus 编/解码**：浏览器侧 WebCodecs（48 kHz / 单声道），网关仅透传
+- **AudioWorklet 采集**：20 ms 帧（960 samples @ 48 kHz），RMS 电平统计
+- **AudioWorklet 播放**：多用户 per-user jitter buffer + 混音输出
+- **VAD（语音活动检测）**：能量阈值 + 可配置挂起时长（hangover）
+- **PTT（按键说话）**：可自定义按键绑定 + 鼠标按钮支持；输入框自动豁免
+- **RNNoise 降噪**（WASM）：可选开启，改善低质量麦克风
+- 浏览器内建处理：噪音抑制 / 回声消除 / 自动增益（AGC），均可独立开关
+- **Opus 码率可调**：12–48 kbps 滑块
+- **上行拥塞控制**：WebSocket 发送缓冲区背压检测，自动丢弃过期帧保持实时性
+- 麦克风输入设备选择（支持热切换）
 
 ## 目录结构
 

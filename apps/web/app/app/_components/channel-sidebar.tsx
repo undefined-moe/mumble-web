@@ -4,12 +4,14 @@ import { useCallback, useMemo, useState } from 'react'
 import { useGatewayStore } from '../../../src/state/gateway-store'
 import { cn } from '../../../src/ui/cn'
 import { Volume2, Search, X, ChevronDown, Users, Lock } from 'lucide-react'
+import { useT } from '../../../src/i18n'
 
 type TreeNode =
   | { kind: 'channel'; id: number; depth: number }
   | { kind: 'user'; userId: number; userName: string; channelId: number; depth: number }
 
 export function ChannelSidebar() {
+  const t = useT()
   const channelsById = useGatewayStore(s => s.channelsById)
   const usersById = useGatewayStore(s => s.usersById)
   const speakingByUserId = useGatewayStore(s => s.speakingByUserId)
@@ -162,7 +164,7 @@ export function ChannelSidebar() {
             type="text"
             value={channelSearch}
             onChange={(e) => setChannelSearch(e.target.value)}
-            placeholder="Search channels..."
+            placeholder={t.channelSidebar.searchPlaceholder}
             className="w-full rounded-md border border-border bg-card/30 py-1 pl-7 pr-7 text-xs text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
           />
           {channelSearch && (
@@ -180,7 +182,7 @@ export function ChannelSidebar() {
         >
           <span className="flex items-center gap-1.5">
             <Users className="h-3 w-3" />
-            Show users
+            {t.channelSidebar.showUsers}
           </span>
           <span
             className={cn(
@@ -231,7 +233,7 @@ export function ChannelSidebar() {
                     )}
                   </div>
                   <span className={cn('truncate', isSelf && 'text-primary')}>
-                    {node.userName}{isSelf ? ' (You)' : ''}
+                    {node.userName}{isSelf ? ` (${t.channelSidebar.you})` : ''}
                   </span>
                 </div>
               )
@@ -286,9 +288,9 @@ export function ChannelSidebar() {
                   "h-3.5 w-3.5 shrink-0",
                   isJoined ? "text-green-500" : hasUsers ? "opacity-100" : "opacity-50"
                 )} />
-                <span className="truncate">{ch.name || '(unnamed)'}</span>
+                <span className="truncate">{ch.name || t.channelSidebar.unnamed}</span>
                 {cannotEnter && (
-                  <span className="ml-auto shrink-0" title="No enter permission">
+                  <span className="ml-auto shrink-0" title={t.channelSidebar.noEnterPermission}>
                     <Lock className="h-3.5 w-3.5 text-red-500" />
                   </span>
                 )}

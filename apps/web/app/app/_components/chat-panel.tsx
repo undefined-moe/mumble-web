@@ -6,8 +6,10 @@ import { cn } from '../../../src/ui/cn'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
 import { MessageSquare, Send } from 'lucide-react'
+import { useT, format } from '../../../src/i18n'
 
 export function ChatPanel() {
+  const t = useT()
   const chat = useGatewayStore(s => s.chat)
   const selfUserId = useGatewayStore(s => s.selfUserId)
   const usersById = useGatewayStore(s => s.usersById)
@@ -28,9 +30,9 @@ export function ChatPanel() {
     <main className="flex flex-1 flex-col overflow-hidden bg-background">
       <div className="flex h-10 shrink-0 items-center border-b border-border px-4">
         <MessageSquare className="mr-2 h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Chat</span>
+        <span className="text-sm font-medium">{t.chat.title}</span>
         {selectedChannelName && (
-          <span className="ml-2 text-xs text-muted-foreground">in {selectedChannelName}</span>
+          <span className="ml-2 text-xs text-muted-foreground">{format(t.chat.inChannel, { channel: selectedChannelName })}</span>
         )}
       </div>
 
@@ -38,7 +40,7 @@ export function ChatPanel() {
         {chat.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-muted-foreground opacity-50">
             <MessageSquare className="mb-2 h-8 w-8" />
-            <p className="text-sm">No messages yet</p>
+            <p className="text-sm">{t.chat.noMessages}</p>
           </div>
         ) : (
           chat.map((m) => {
@@ -50,7 +52,7 @@ export function ChatPanel() {
                 {!isSystem && (
                   <div className="flex items-baseline gap-2">
                     <span className={cn("font-semibold text-xs", isMe ? "text-primary" : "text-foreground")}>
-                      {user?.name || (isMe ? 'Me' : `#${m.senderId}`)}
+                      {user?.name || (isMe ? t.chat.me : `#${m.senderId}`)}
                     </span>
                     <span className="text-[10px] text-muted-foreground opacity-50">
                       {new Date(m.timestampMs).toLocaleTimeString()}
@@ -84,7 +86,7 @@ export function ChatPanel() {
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder={selectedChannelName ? `Message ${selectedChannelName}...` : "Send a message..."}
+            placeholder={selectedChannelName ? format(t.chat.messagePlaceholder, { channel: selectedChannelName }) : t.chat.sendPlaceholder}
             className="flex-1"
           />
           <Button type="submit" size="icon" disabled={!message.trim()}>

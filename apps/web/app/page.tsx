@@ -9,6 +9,7 @@ import { Label } from '../components/ui/label'
 import { useGatewayStore } from '../src/state/gateway-store'
 import { RadioTower, User, KeyRound, Server, ArrowRight, Loader2, AlertCircle } from 'lucide-react'
 import { cn } from '../src/ui/cn'
+import { useT, format, useLocaleStore, localeLabels, localeList } from '../src/i18n'
 
 export default function ConnectPage() {
   const router = useRouter()
@@ -29,6 +30,9 @@ export default function ConnectPage() {
   const [password, setPassword] = useState('')
   const [tokens, setTokens] = useState('')
   const [hydrated, setHydrated] = useState(false)
+  const t = useT()
+  const locale = useLocaleStore(s => s.locale)
+  const setLocale = useLocaleStore(s => s.setLocale)
 
   useEffect(() => {
     init()
@@ -92,14 +96,14 @@ export default function ConnectPage() {
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
             <RadioTower className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">Mumble Web</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight">{t.connect.title}</CardTitle>
           <CardDescription>
-            High quality, low latency voice chat.
+            {t.connect.description}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Server</Label>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.connect.serverLabel}</Label>
             <div className="relative">
               <Server className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <select
@@ -111,7 +115,7 @@ export default function ConnectPage() {
                 onChange={(e) => setServerId(e.target.value)}
               >
                 <option value="" disabled>
-                  Select a server...
+                  {t.connect.serverPlaceholder}
                 </option>
                 {servers.map((s) => (
                   <option key={s.id} value={s.id} className="text-foreground">
@@ -123,7 +127,7 @@ export default function ConnectPage() {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Identity</Label>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.connect.identityLabel}</Label>
             <div className="space-y-3">
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -131,7 +135,7 @@ export default function ConnectPage() {
                   className="pl-9 bg-background/50 border-input/50 focus:bg-background transition-colors"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Username"
+                  placeholder={t.connect.usernamePlaceholder}
                 />
               </div>
               <div className="relative">
@@ -141,19 +145,19 @@ export default function ConnectPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   type="password"
-                  placeholder="Password (Optional)"
+                  placeholder={t.connect.passwordPlaceholder}
                 />
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Access Tokens</Label>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t.connect.tokensLabel}</Label>
             <Input
               className="bg-background/50 border-input/50 focus:bg-background transition-colors"
               value={tokens}
               onChange={(e) => setTokens(e.target.value)}
-              placeholder="Comma,separated,tokens"
+              placeholder={t.connect.tokensPlaceholder}
             />
           </div>
 
@@ -164,7 +168,7 @@ export default function ConnectPage() {
               onChange={(e) => setRememberCredentials(e.target.checked)}
               className="h-4 w-4 rounded border-input accent-primary"
             />
-            <span className="text-xs text-muted-foreground">Remember credentials</span>
+            <span className="text-xs text-muted-foreground">{t.connect.rememberCredentials}</span>
           </label>
 
           {connectError ? (
@@ -184,11 +188,11 @@ export default function ConnectPage() {
             {status === 'connecting' ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Connecting...
+                {t.connect.connecting}
               </>
             ) : (
               <>
-                Connect
+                {t.connect.connectButton}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}
@@ -197,13 +201,29 @@ export default function ConnectPage() {
           <div className="flex w-full justify-between items-center text-[10px] text-muted-foreground px-1">
             <div className="flex items-center gap-1">
               <span className={cn("inline-block h-2 w-2 rounded-full", gatewayStatus === 'open' ? "bg-emerald-500" : "bg-yellow-500")} />
-              Gateway {gatewayStatus}
+              {format(t.connect.gatewayStatus, { status: gatewayStatus })}
             </div>
-            {status === 'reconnecting' && (
-              <button onClick={() => disconnect()} className="hover:text-foreground underline transition-colors">
-                Cancel Reconnect
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {status === 'reconnecting' && (
+                <button onClick={() => disconnect()} className="hover:text-foreground underline transition-colors">
+                  {t.connect.cancelReconnect}
+                </button>
+              )}
+              <div className="flex items-center gap-1">
+                {localeList.map((loc) => (
+                  <button
+                    key={loc}
+                    onClick={() => setLocale(loc)}
+                    className={cn(
+                      "px-1.5 py-0.5 text-[10px] rounded transition-colors",
+                      locale === loc ? "text-primary font-medium" : "hover:text-foreground"
+                    )}
+                  >
+                    {localeLabels[loc]}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </CardFooter>
       </Card>
