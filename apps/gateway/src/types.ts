@@ -71,4 +71,5 @@ export type UserState = {
   suppress?: boolean
   selfMute?: boolean
   selfDeaf?: boolean
+  texture?: string
 }

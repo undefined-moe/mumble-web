@@ -160,11 +160,58 @@ function attachMumbleEventForwarders(ws: WebSocket, session: Session): Array<() 
   const send: (m: GatewayServerMessage) => void = (m) => sendJson(ws, m)
   const unsubs: Array<() => void> = []
 
+  // --- Post-connect burst batching ---
+  // Some Mumble servers send a large burst of ChannelState/UserState messages after
+  // ServerSync (e.g. ~1000 channels). Instead of forwarding each as an individual
+  // WebSocket message (causing N Zustand updates + re-renders on the client), we
+  // buffer them and flush as a single stateSnapshot.
+  const BATCH_IDLE_MS = 80
+  const BATCH_MAX_MS = 500
+  let batching = true
+  let batchDirty = false
+  let idleTimer: ReturnType<typeof setTimeout> | null = null
+
+  const flushBatch = () => {
+    if (idleTimer) { clearTimeout(idleTimer); idleTimer = null }
+    batching = false
+    if (batchDirty) {
+      batchDirty = false
+      debugLog(`[gateway] flushing post-connect batch snapshot (${client.channels.length} ch, ${client.users.length} users)`)
+      send({
+        type: 'stateSnapshot',
+        channels: client.channels.sort((a, b) => a.id - b.id),
+        users: client.users.sort((a, b) => a.id - b.id)
+      })
+    }
+  }
+
+  const maxTimer = setTimeout(flushBatch, BATCH_MAX_MS)
+
+  const onBatchable = (): boolean => {
+    if (!batching) return false
+    batchDirty = true
+    if (idleTimer) clearTimeout(idleTimer)
+    idleTimer = setTimeout(flushBatch, BATCH_IDLE_MS)
+    return true
+  }
+
   unsubs.push(
-    client.events.on('channelUpsert', (channel) => send({ type: 'channelUpsert', channel })),
-    client.events.on('channelRemove', (channelId) => send({ type: 'channelRemove', channelId })),
-    client.events.on('userUpsert', (user) => send({ type: 'userUpsert', user })),
-    client.events.on('userRemove', (userId) => send({ type: 'userRemove', userId })),
+    client.events.on('channelUpsert', (channel) => {
+      if (onBatchable()) return
+      send({ type: 'channelUpsert', channel })
+    }),
+    client.events.on('channelRemove', (channelId) => {
+      if (onBatchable()) return
+      send({ type: 'channelRemove', channelId })
+    }),
+    client.events.on('userUpsert', (user) => {
+      if (onBatchable()) return
+      send({ type: 'userUpsert', user })
+    }),
+    client.events.on('userRemove', (userId) => {
+      if (onBatchable()) return
+      send({ type: 'userRemove', userId })
+    }),
     client.events.on('textMessage', (m) => {
       send({
         type: 'textRecv',
@@ -187,9 +234,11 @@ function attachMumbleEventForwarders(ws: WebSocket, session: Session): Array<() 
       sendError(ws, 'mumble_denied', 'Permission denied', denied)
     }),
     client.events.on('error', (err) => {
+      console.error('[gateway] mumble error:', err)
       sendError(ws, 'mumble_error', 'Mumble client error', err)
     }),
     client.events.on('disconnected', () => {
+      console.warn('[gateway] mumble disconnected (serverId=%s)', session.serverId)
       send({ type: 'disconnected', reason: 'mumble_disconnect' })
     }),
     client.events.on('voiceOpus', (frame) => {
@@ -212,6 +261,11 @@ function attachMumbleEventForwarders(ws: WebSocket, session: Session): Array<() 
       session.metrics.voiceDownlinkBytes += msg.byteLength
     })
   )
+
+  unsubs.push(() => {
+    clearTimeout(maxTimer)
+    if (idleTimer) clearTimeout(idleTimer)
+  })
 
   return unsubs
 }

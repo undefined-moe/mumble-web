@@ -19,6 +19,7 @@ import {
   encodeAuthenticate,
   encodeCryptSetup,
   encodePing,
+  encodeRequestBlob,
   encodeTextMessage,
   encodeUserState,
   encodeVersion
@@ -75,6 +76,15 @@ function versionV1(major: number, minor: number, patch: number): number {
   return ((major & 0xffff) << 16) | ((minor & 0xff) << 8) | (patch & 0xff)
 }
 
+function textureToDataUrl(buf: Buffer): string {
+  let mime = 'image/png'
+  if (buf.length >= 2) {
+    if (buf[0] === 0xff && buf[1] === 0xd8) mime = 'image/jpeg'
+    else if (buf[0] === 0x47 && buf[1] === 0x49) mime = 'image/gif'
+  }
+  return `data:${mime};base64,${buf.toString('base64')}`
+}
+
 export class MumbleTcpClient {
   private _socket: tls.TLSSocket
   private _buffer: Buffer = Buffer.alloc(0)
@@ -82,6 +92,7 @@ export class MumbleTcpClient {
   private _keepaliveTimer: NodeJS.Timeout | null = null
 
   private _pendingPings = new Map<bigint, number>()
+  private _requestedTextureBlobs = new Set<number>()
 
   readonly events = new TypedEmitter<Events>()
 
@@ -97,8 +108,15 @@ export class MumbleTcpClient {
     this._socket = socket
 
     socket.on('data', (chunk) => this._onData(chunk))
-    socket.once('close', () => this._onClose())
-    socket.on('error', (err) => this.events.emit('error', err))
+    socket.once('close', (hadError) => {
+      console.warn('[mumble-tcp] socket closed (hadError=%s, destroyed=%s, readyState=%s)',
+        hadError, socket.destroyed, socket.readyState)
+      this._onClose()
+    })
+    socket.on('error', (err) => {
+      console.error('[mumble-tcp] socket error:', (err as Error).message ?? err)
+      this.events.emit('error', err)
+    })
   }
 
   static async connect(params: {
@@ -328,12 +346,29 @@ export class MumbleTcpClient {
           if (suppress != null) next.suppress = suppress
           if (selfMute != null) next.selfMute = selfMute
           if (selfDeaf != null) next.selfDeaf = selfDeaf
+          if (u.texture != null && u.texture.length > 0) {
+            next.texture = textureToDataUrl(u.texture)
+            this._requestedTextureBlobs.delete(u.session)
+          } else if (u.texture == null && prev?.texture) {
+            next.texture = prev.texture
+          }
+
+          // Server sent texture_hash without full texture — request the blob.
+          if (!next.texture && u.textureHash != null && u.textureHash.length > 0 && !this._requestedTextureBlobs.has(u.session)) {
+            this._requestedTextureBlobs.add(u.session)
+            this.sendMessage(TcpMessageType.RequestBlob, encodeRequestBlob({ sessionTextures: [u.session] }))
+          }
+
           this.users.set(next.id, next)
           this.events.emit('userUpsert', next)
           return
         }
         case TcpMessageType.UserRemove: {
           const msg = decodeUserRemove(payload)
+          if (msg.session === this.selfUserId) {
+            console.warn('[mumble-tcp] self removed: session=%d actor=%d reason=%s ban=%s',
+              msg.session, msg.actor ?? -1, msg.reason ?? '(none)', msg.ban ?? false)
+          }
           this.users.delete(msg.session)
           this.events.emit('userRemove', msg.session)
           return
@@ -371,6 +406,7 @@ export class MumbleTcpClient {
           return
         }
         default:
+          console.log('[mumble-tcp] unhandled message type=%d len=%d', type, payload.length)
           return
       }
     } catch (err) {

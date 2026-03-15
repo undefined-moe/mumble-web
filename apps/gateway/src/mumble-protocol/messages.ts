@@ -14,7 +14,8 @@ export enum TcpMessageType {
   TextMessage = 11,
   PermissionDenied = 12,
   CryptSetup = 15,
-  CodecVersion = 21
+  CodecVersion = 21,
+  RequestBlob = 23
 }
 
 export type VersionMessage = {
@@ -285,6 +286,8 @@ export type UserStateMessage = {
   suppress?: boolean
   selfMute?: boolean
   selfDeaf?: boolean
+  texture?: Buffer
+  textureHash?: Buffer
 }
 
 export function decodeUserState(buf: Buffer): UserStateMessage {
@@ -318,6 +321,12 @@ export function decodeUserState(buf: Buffer): UserStateMessage {
       case 10:
         out.selfDeaf = r.readBool()
         break
+      case 11:
+        out.texture = r.readBytes()
+        break
+      case 17:
+        out.textureHash = r.readBytes()
+        break
       default:
         r.skip(tag.wireType)
         break
@@ -328,22 +337,40 @@ export function decodeUserState(buf: Buffer): UserStateMessage {
 
 export type UserRemoveMessage = {
   session: number
+  actor?: number
+  reason?: string
+  ban?: boolean
 }
 
 export function decodeUserRemove(buf: Buffer): UserRemoveMessage {
   const r = new ProtobufReader(buf)
   let session: number | undefined
+  let actor: number | undefined
+  let reason: string | undefined
+  let ban: boolean | undefined
   for (;;) {
     const tag = r.readTag()
     if (!tag) break
-    if (tag.fieldNumber === 1) {
-      session = r.readUint32()
-    } else {
-      r.skip(tag.wireType)
+    switch (tag.fieldNumber) {
+      case 1:
+        session = r.readUint32()
+        break
+      case 2:
+        actor = r.readUint32()
+        break
+      case 3:
+        reason = r.readString()
+        break
+      case 4:
+        ban = r.readBool()
+        break
+      default:
+        r.skip(tag.wireType)
+        break
     }
   }
   if (session == null) throw new Error('UserRemove missing session')
-  return { session }
+  return { session, ...(actor != null ? { actor } : {}), ...(reason != null ? { reason } : {}), ...(ban != null ? { ban } : {}) }
 }
 
 export type TextMessageMessage = {
@@ -470,5 +497,17 @@ export function encodeUserState(msg: OutboundUserState): Buffer {
   const w = new ProtobufWriter()
   if (msg.session != null) w.uint32(1, msg.session)
   if (msg.channelId != null) w.uint32(5, msg.channelId)
+  return w.finish()
+}
+
+export function encodeRequestBlob(params: {
+  sessionTextures?: number[]
+  sessionComments?: number[]
+  channelDescriptions?: number[]
+}): Buffer {
+  const w = new ProtobufWriter()
+  for (const s of params.sessionTextures ?? []) w.uint32(1, s)
+  for (const s of params.sessionComments ?? []) w.uint32(2, s)
+  for (const c of params.channelDescriptions ?? []) w.uint32(3, c)
   return w.finish()
 }

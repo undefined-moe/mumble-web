@@ -20,6 +20,7 @@ type UserState = {
   suppress?: boolean
   selfMute?: boolean
   selfDeaf?: boolean
+  texture?: string
 }
 
 type ChatItem = {
@@ -574,6 +575,7 @@ export const useGatewayStore = create<GatewayStore>()(
                 if (u.suppress != null) entry.suppress = u.suppress
                 if (u.selfMute != null) entry.selfMute = u.selfMute
                 if (u.selfDeaf != null) entry.selfDeaf = u.selfDeaf
+                if (u.texture != null) entry.texture = u.texture
                 usersById[u.id] = entry
               }
 
@@ -646,6 +648,8 @@ export const useGatewayStore = create<GatewayStore>()(
                 if (suppress != null) next.suppress = suppress
                 if (selfMute != null) next.selfMute = selfMute
                 if (selfDeaf != null) next.selfDeaf = selfDeaf
+                const texture = u.texture ?? prev?.texture
+                if (texture != null) next.texture = texture
                 return {
                   usersById: { ...s.usersById, [u.id]: next },
                 }

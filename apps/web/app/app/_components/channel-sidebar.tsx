@@ -173,6 +173,7 @@ export function ChannelSidebar() {
             if (node.kind === 'user') {
               const isSelf = node.userId === selfUserId
               const isSpeaking = isSelf ? selfSpeaking : speakingByUserId[node.userId]
+              const userTexture = usersById[node.userId]?.texture
               return (
                 <div
                   key={`u-${node.userId}`}
@@ -186,10 +187,15 @@ export function ChannelSidebar() {
                 >
                   <span className="w-4 shrink-0" />
                   <div className={cn(
-                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-accent/50 text-[8px] font-medium uppercase',
-                    isSpeaking && 'bg-green-500 text-white'
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-accent/50 text-[8px] font-medium uppercase overflow-hidden',
+                    isSpeaking && !userTexture && 'bg-green-500 text-white',
+                    isSpeaking && userTexture && 'ring-1 ring-green-500'
                   )}>
-                    {node.userName.slice(0, 2)}
+                    {userTexture ? (
+                      <img src={userTexture} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      node.userName.slice(0, 2)
+                    )}
                   </div>
                   <span className={cn('truncate', isSelf && 'text-primary')}>
                     {node.userName}{isSelf ? ' (You)' : ''}

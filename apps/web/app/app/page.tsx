@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { useGatewayStore } from '../../src/state/gateway-store'
 import { VoiceEngine } from '../../src/audio/voice-engine'
 import { canUseWebCodecsOpus, createWebCodecsOpusDecoder, createWebCodecsOpusEncoder } from '../../src/audio/webcodecs-opus'
@@ -21,6 +22,7 @@ import { DisconnectedView } from './_components/disconnected-view'
 const pipAvailable = isPipSupported()
 
 export default function AppPage() {
+  const router = useRouter()
   const status = useGatewayStore(s => s.status)
   const init = useGatewayStore(s => s.init)
   const disconnect = useGatewayStore(s => s.disconnect)
@@ -40,6 +42,12 @@ export default function AppPage() {
   useEffect(() => {
     init()
   }, [init])
+
+  useEffect(() => {
+    if (status === 'idle') {
+      router.replace('/')
+    }
+  }, [status, router])
 
   useEffect(() => {
     if (!rnnoiseEnabled) {

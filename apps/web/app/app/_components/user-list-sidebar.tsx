@@ -43,10 +43,15 @@ export function UserListSidebar() {
                 )}
               >
                 <div className={cn(
-                  "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/50 text-xs font-medium uppercase",
-                  isSpeaking && "bg-green-500 text-white animate-pulse"
+                  "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/50 text-xs font-medium uppercase overflow-hidden",
+                  isSpeaking && !u.texture && "bg-green-500 text-white animate-pulse",
+                  isSpeaking && u.texture && "ring-2 ring-green-500 animate-pulse"
                 )}>
-                  {u.name.slice(0, 2)}
+                  {u.texture ? (
+                    <img src={u.texture} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    u.name.slice(0, 2)
+                  )}
                   {isSpeaking && <span className="absolute -bottom-0.5 -right-0.5 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />}
                 </div>
                 <div className="flex flex-1 items-center gap-1 overflow-hidden">
