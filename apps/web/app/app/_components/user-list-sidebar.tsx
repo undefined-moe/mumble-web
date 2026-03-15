@@ -20,7 +20,7 @@ export function UserListSidebar() {
   }, [usersById, selectedChannelId])
 
   return (
-    <aside className="hidden w-64 flex-col border-l border-border bg-card/30 lg:flex">
+    <aside className="hidden w-80 flex-col border-l border-border bg-card/30 lg:flex">
       <div className="flex h-10 items-center justify-between border-b border-border px-4">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Users</span>
         <span className="text-xs text-muted-foreground">{usersInSelectedChannel.length} online</span>

@@ -19,6 +19,7 @@ export type GatewayClientMessage =
   | { type: 'disconnect' }
   | { type: 'joinChannel'; channelId: number }
   | { type: 'textSend'; message: string; channelId?: number; userId?: number }
+  | { type: 'queryPermission'; channelId: number }
   | { type: 'ping'; clientTimeMs: number }
 
 export type GatewayServerMessage =
@@ -52,6 +53,9 @@ export type GatewayServerMessage =
   | { type: 'userUpsert'; user: UserState }
   | { type: 'userRemove'; userId: number }
   | { type: 'textRecv'; senderId: number; message: string; targetUsers: number[]; targetChannels: number[]; targetTrees: number[]; timestampMs: number }
+  | { type: 'contextActionModify'; action?: string; text?: string; context?: number; operation?: number }
+  | { type: 'permissionQuery'; channelId?: number; permissions?: number; flush?: boolean }
+  | { type: 'serverConfig'; maxBandwidth?: number; welcomeText?: string; allowHtml?: boolean; messageLength?: number; imageMessageLength?: number; maxUsers?: number; recordingAllowed?: boolean }
 
 export type ChannelState = {
   id: number

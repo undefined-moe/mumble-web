@@ -2,15 +2,21 @@ import tls from 'node:tls'
 import { setInterval, clearInterval } from 'node:timers'
 import type { ChannelState, UserState } from '../types.js'
 import {
+  type ContextActionModifyMessage,
   type CryptSetupMessage,
+  type PermissionQueryMessage,
+  type ServerConfigMessage,
   TcpMessageType,
   decodeChannelRemove,
   decodeChannelState,
   decodeCodecVersion,
+  decodeContextActionModify,
   decodeCryptSetup,
   decodePermissionDenied,
+  decodePermissionQuery,
   decodePing,
   decodeReject,
+  decodeServerConfig,
   decodeServerSync,
   decodeTextMessage,
   decodeUserRemove,
@@ -18,6 +24,7 @@ import {
   decodeVersion,
   encodeAuthenticate,
   encodeCryptSetup,
+  encodePermissionQuery,
   encodePing,
   encodeRequestBlob,
   encodeTextMessage,
@@ -67,6 +74,9 @@ type Events = {
   cryptSetup: CryptSetupMessage
   reject: MumbleReject
   denied: MumblePermissionDenied
+  contextActionModify: ContextActionModifyMessage
+  permissionQuery: PermissionQueryMessage
+  serverConfig: ServerConfigMessage
   error: unknown
   disconnected: undefined
   // Voice events are added in a later module (see voice.ts integration)
@@ -92,12 +102,18 @@ export class MumbleTcpClient {
   private _keepaliveTimer: NodeJS.Timeout | null = null
 
   private _pendingPings = new Map<bigint, number>()
+  private _tcpPackets = 0
+  private _tcpPingSum = 0
+  private _tcpPingSqSum = 0
+  private _tcpPingCount = 0
   private _requestedTextureBlobs = new Set<number>()
 
   readonly events = new TypedEmitter<Events>()
 
   readonly channels = new Map<number, ChannelState>()
   readonly users = new Map<number, UserState>()
+
+  private _synced = false
 
   selfUserId = 0
   rootChannelId = 0
@@ -164,13 +180,29 @@ export class MumbleTcpClient {
       clientType: 0
     }))
 
-    // Keepalive ping (required by server; disconnects after ~30s without ping).
     client._keepaliveTimer = setInterval(() => {
       if (client._closed) return
+      client._tcpPackets++
       const ts = BigInt(Date.now())
       client._pendingPings.set(ts, Date.now())
-      client.sendMessage(TcpMessageType.Ping, encodePing({ timestamp: ts }))
-    }, 10_000)
+      const tcpPingAvg = client._tcpPingCount > 0 ? client._tcpPingSum / client._tcpPingCount : 0
+      const tcpPingVar = client._tcpPingCount > 1
+        ? (client._tcpPingSqSum / client._tcpPingCount) - (tcpPingAvg * tcpPingAvg)
+        : 0
+      client.sendMessage(TcpMessageType.Ping, encodePing({
+        timestamp: ts,
+        good: 0,
+        late: 0,
+        lost: 0,
+        resync: 0,
+        udpPackets: 0,
+        tcpPackets: client._tcpPackets,
+        udpPingAvg: 0,
+        udpPingVar: 0,
+        tcpPingAvg,
+        tcpPingVar: Math.max(0, tcpPingVar),
+      }))
+    }, 5_000)
 
     return client
   }
@@ -231,6 +263,10 @@ export class MumbleTcpClient {
     this.sendMessage(TcpMessageType.CryptSetup, encodeCryptSetup(msg))
   }
 
+  queryPermission(channelId: number): void {
+    this.sendMessage(TcpMessageType.PermissionQuery, encodePermissionQuery({ channelId }))
+  }
+
   private _onClose() {
     if (this._keepaliveTimer) clearInterval(this._keepaliveTimer)
     this._keepaliveTimer = null
@@ -272,7 +308,11 @@ export class MumbleTcpClient {
           if (sync.session != null) this.selfUserId = sync.session
           if (sync.maxBandwidth != null) this.serverInfo.maxBandwidth = sync.maxBandwidth
           if (sync.welcomeText != null) this.serverInfo.welcomeMessage = sync.welcomeText
+          this._synced = true
           this.events.emit('serverSync', { ...this.serverInfo })
+          for (const id of this.channels.keys()) {
+            this.queryPermission(id)
+          }
           return
         }
         case TcpMessageType.Ping: {
@@ -281,7 +321,11 @@ export class MumbleTcpClient {
             const sent = this._pendingPings.get(ping.timestamp)
             if (sent != null) {
               this._pendingPings.delete(ping.timestamp)
-              this.events.emit('serverRtt', Date.now() - sent)
+              const rtt = Date.now() - sent
+              this._tcpPingCount++
+              this._tcpPingSum += rtt
+              this._tcpPingSqSum += rtt * rtt
+              this.events.emit('serverRtt', rtt)
             }
           }
           return
@@ -315,8 +359,12 @@ export class MumbleTcpClient {
           if (description != null) next.description = description
           if (links && links.length) next.links = links
 
+          const isNew = !prev
           this.channels.set(next.id, next)
           this.events.emit('channelUpsert', next)
+          if (isNew && this._synced) {
+            this.queryPermission(next.id)
+          }
           return
         }
         case TcpMessageType.ChannelRemove: {
@@ -403,6 +451,23 @@ export class MumbleTcpClient {
           if (msg.clientNonce != null) this.cryptSetup.clientNonce = Buffer.from(msg.clientNonce)
           if (msg.serverNonce != null) this.cryptSetup.serverNonce = Buffer.from(msg.serverNonce)
           this.events.emit('cryptSetup', msg)
+          return
+        }
+        case TcpMessageType.ContextActionModify: {
+          const msg = decodeContextActionModify(payload)
+          this.events.emit('contextActionModify', msg)
+          return
+        }
+        case TcpMessageType.PermissionQuery: {
+          const msg = decodePermissionQuery(payload)
+          this.events.emit('permissionQuery', msg)
+          return
+        }
+        case TcpMessageType.ServerConfig: {
+          const msg = decodeServerConfig(payload)
+          if (msg.maxBandwidth != null) this.serverInfo.maxBandwidth = msg.maxBandwidth
+          if (msg.welcomeText != null) this.serverInfo.welcomeMessage = msg.welcomeText
+          this.events.emit('serverConfig', msg)
           return
         }
         default:

@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useGatewayStore } from '../../../src/state/gateway-store'
 import { cn } from '../../../src/ui/cn'
-import { Volume2, Search, X, ChevronDown } from 'lucide-react'
+import { Volume2, Search, X, ChevronDown, Users, Lock } from 'lucide-react'
 
 type TreeNode =
   | { kind: 'channel'; id: number; depth: number }
@@ -19,9 +19,11 @@ export function ChannelSidebar() {
   const selectedChannelId = useGatewayStore(s => s.selectedChannelId)
   const selectChannel = useGatewayStore(s => s.selectChannel)
   const joinSelectedChannel = useGatewayStore(s => s.joinSelectedChannel)
+  const permissionsByChannelId = useGatewayStore(s => s.permissionsByChannelId)
 
   const [channelSearch, setChannelSearch] = useState('')
   const [collapsedChannels, setCollapsedChannels] = useState<Set<number>>(new Set())
+  const [showUsers, setShowUsers] = useState(false)
 
   const root = rootChannelId != null ? channelsById[rootChannelId] : undefined
   const selfChannelId = selfUserId != null ? usersById[selfUserId]?.channelId ?? null : null
@@ -75,7 +77,16 @@ export function ChannelSidebar() {
         if (skipBelowDepth >= 0 && node.depth > skipBelowDepth) continue
         skipBelowDepth = -1
         result.push({ kind: 'channel', id: node.id, depth: node.depth })
-        if (collapsedChannels.has(node.id)) skipBelowDepth = node.depth
+        if (collapsedChannels.has(node.id)) {
+          skipBelowDepth = node.depth
+        } else if (showUsers) {
+          const channelUsers = Object.values(usersById)
+            .filter(u => u.channelId === node.id)
+            .sort((a, b) => a.name.localeCompare(b.name))
+          for (const u of channelUsers) {
+            result.push({ kind: 'user', userId: u.id, userName: u.name, channelId: node.id, depth: node.depth + 1 })
+          }
+        }
       }
       return result
     }
@@ -131,7 +142,7 @@ export function ChannelSidebar() {
       }
     }
     return result
-  }, [channelTree, channelsById, usersById, channelSearch, collapsedChannels])
+  }, [channelTree, channelsById, usersById, channelSearch, collapsedChannels, showUsers])
 
   const toggleCollapse = useCallback((channelId: number) => {
     setCollapsedChannels(prev => {
@@ -143,7 +154,7 @@ export function ChannelSidebar() {
   }, [])
 
   return (
-    <aside className="hidden w-64 flex-col border-r border-border bg-card/30 md:flex">
+    <aside className="hidden w-80 flex-col border-r border-border bg-card/30 md:flex">
       <div className="border-b border-border px-3 py-2 space-y-1.5">
         <div className="relative">
           <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
@@ -163,6 +174,28 @@ export function ChannelSidebar() {
             </button>
           )}
         </div>
+        <button
+          onClick={() => setShowUsers(v => !v)}
+          className="flex w-full items-center justify-between rounded-md px-1.5 py-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-1.5">
+            <Users className="h-3 w-3" />
+            Show users
+          </span>
+          <span
+            className={cn(
+              'relative inline-flex h-3.5 w-6 shrink-0 items-center rounded-full transition-colors',
+              showUsers ? 'bg-primary' : 'bg-muted-foreground/30'
+            )}
+          >
+            <span
+              className={cn(
+                'inline-block h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-transform',
+                showUsers ? 'translate-x-3' : 'translate-x-0.5'
+              )}
+            />
+          </span>
+        </button>
       </div>
       <div className="flex-1 overflow-y-auto p-2">
         <div className="space-y-0.5">
@@ -211,6 +244,8 @@ export function ChannelSidebar() {
             const hasUsers = Object.values(usersById).some(u => u.channelId === node.id)
             const hasChildren = childrenByParent.has(node.id)
             const isCollapsed = collapsedChannels.has(node.id)
+            const perms = permissionsByChannelId[node.id]
+            const cannotEnter = perms != null && (perms & 0x04) === 0
 
             return (
               <button
@@ -252,7 +287,12 @@ export function ChannelSidebar() {
                   isJoined ? "text-green-500" : hasUsers ? "opacity-100" : "opacity-50"
                 )} />
                 <span className="truncate">{ch.name || '(unnamed)'}</span>
-                {isJoined && (
+                {cannotEnter && (
+                  <span className="ml-auto shrink-0" title="No enter permission">
+                    <Lock className="h-3.5 w-3.5 text-red-500" />
+                  </span>
+                )}
+                {isJoined && !cannotEnter && (
                   <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
                 )}
               </button>

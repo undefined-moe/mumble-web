@@ -66,6 +66,22 @@ type Metrics = {
   voiceDownlinkOutOfOrderFramesTotal?: number
 }
 
+type ContextAction = {
+  action: string
+  text: string
+  context: number
+}
+
+type MumbleServerConfig = {
+  maxBandwidth?: number
+  welcomeText?: string
+  allowHtml?: boolean
+  messageLength?: number
+  imageMessageLength?: number
+  maxUsers?: number
+  recordingAllowed?: boolean
+}
+
 type Status = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'error'
 
 type GatewayStatus = 'closed' | 'connecting' | 'open'
@@ -108,6 +124,9 @@ type GatewayStore = {
   metrics: Metrics
   playbackStats: PlaybackStats | null
   captureStats: CaptureStats | null
+  contextActions: ContextAction[]
+  permissionsByChannelId: Record<number, number>
+  mumbleServerConfig: MumbleServerConfig
 
   // Audio settings (persisted)
   voiceMode: VoiceMode
@@ -297,6 +316,9 @@ export const useGatewayStore = create<GatewayStore>()(
       metrics: {},
       playbackStats: null,
       captureStats: null,
+      contextActions: [],
+      permissionsByChannelId: {},
+      mumbleServerConfig: {},
 
       voiceMode: 'vad',
       vadThreshold: 0.02,
@@ -540,6 +562,9 @@ export const useGatewayStore = create<GatewayStore>()(
                 metrics: {},
                 playbackStats: null,
                 captureStats: null,
+                contextActions: [],
+                permissionsByChannelId: {},
+                mumbleServerConfig: {},
               })
 
               if (shouldReconnect) {
@@ -715,6 +740,58 @@ export const useGatewayStore = create<GatewayStore>()(
               }))
               return
             }
+            case 'contextActionModify': {
+              const action = typeof msg.action === 'string' ? msg.action : ''
+              const text = typeof msg.text === 'string' ? msg.text : ''
+              const context = typeof msg.context === 'number' ? msg.context : 0
+              const operation = typeof msg.operation === 'number' ? msg.operation : 0
+
+              if (operation === 1) {
+                set((s) => ({
+                  contextActions: s.contextActions.filter((a) => a.action !== action),
+                }))
+              } else {
+                set((s) => ({
+                  contextActions: [
+                    ...s.contextActions.filter((a) => a.action !== action),
+                    { action, text, context },
+                  ],
+                }))
+              }
+              return
+            }
+            case 'permissionQuery': {
+              const channelId = typeof msg.channelId === 'number' ? msg.channelId : null
+              const permissions = typeof msg.permissions === 'number' ? msg.permissions : null
+              const flush = msg.flush === true
+
+              if (flush) {
+                if (channelId != null && permissions != null) {
+                  set({ permissionsByChannelId: { [channelId]: permissions } })
+                } else {
+                  set({ permissionsByChannelId: {} })
+                }
+              } else if (channelId != null && permissions != null) {
+                set((s) => ({
+                  permissionsByChannelId: { ...s.permissionsByChannelId, [channelId]: permissions },
+                }))
+              }
+              return
+            }
+            case 'serverConfig': {
+              set((s) => {
+                const next = { ...s.mumbleServerConfig }
+                if (msg.maxBandwidth != null) next.maxBandwidth = msg.maxBandwidth
+                if (msg.welcomeText != null) next.welcomeText = msg.welcomeText
+                if (msg.allowHtml != null) next.allowHtml = msg.allowHtml
+                if (msg.messageLength != null) next.messageLength = msg.messageLength
+                if (msg.imageMessageLength != null) next.imageMessageLength = msg.imageMessageLength
+                if (msg.maxUsers != null) next.maxUsers = msg.maxUsers
+                if (msg.recordingAllowed != null) next.recordingAllowed = msg.recordingAllowed
+                return { mumbleServerConfig: next }
+              })
+              return
+            }
             case 'error': {
               const code = typeof msg.code === 'string' ? msg.code : 'error'
               const message = typeof msg.message === 'string' ? msg.message : 'Unknown error'
@@ -775,6 +852,9 @@ export const useGatewayStore = create<GatewayStore>()(
             metrics: {},
             playbackStats: null,
             captureStats: null,
+            contextActions: [],
+            permissionsByChannelId: {},
+            mumbleServerConfig: {},
             _reconnectAttempt: attempt,
             _reconnectTimeout: id,
             _sessionReconnectAttempt: 0,
@@ -811,6 +891,9 @@ export const useGatewayStore = create<GatewayStore>()(
           metrics: {},
           playbackStats: null,
           captureStats: null,
+          contextActions: [],
+          permissionsByChannelId: {},
+          mumbleServerConfig: {},
           _lastConnectArgs: null,
           _connectedOnce: false,
           _reconnectAttempt: 0,

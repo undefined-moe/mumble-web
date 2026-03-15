@@ -1,7 +1,7 @@
 import type { ChannelState, ServerConfig, UserState } from './types.js'
 import { getGatewayCert } from './tls-cert.js'
 import { MumbleTcpClient, type MumblePermissionDenied, type MumbleReject, type MumbleTextMessage } from './mumble-protocol/client.js'
-import { TcpMessageType } from './mumble-protocol/messages.js'
+import { type ContextActionModifyMessage, type PermissionQueryMessage, type ServerConfigMessage, TcpMessageType } from './mumble-protocol/messages.js'
 import { MumbleUdpVoiceClient } from './mumble-protocol/udp-voice-client.js'
 import { decodeLegacyVoicePacketFromServer, encodeLegacyOpusPacketFromClient, encodeLegacyPingPacket } from './mumble-protocol/voice-legacy.js'
 import { TypedEmitter } from './mumble-protocol/typed-emitter.js'
@@ -29,6 +29,9 @@ type SessionEvents = {
   serverRtt: number
   reject: MumbleReject
   denied: MumblePermissionDenied
+  contextActionModify: ContextActionModifyMessage
+  permissionQuery: PermissionQueryMessage
+  serverConfig: ServerConfigMessage
   voiceOpus: VoiceOpusFrame
   error: unknown
   disconnected: undefined
@@ -58,6 +61,9 @@ export class MumbleSession {
       tcp.events.on('serverRtt', (ms) => this.events.emit('serverRtt', ms)),
       tcp.events.on('reject', (r) => this.events.emit('reject', r)),
       tcp.events.on('denied', (d) => this.events.emit('denied', d)),
+      tcp.events.on('contextActionModify', (m) => this.events.emit('contextActionModify', m)),
+      tcp.events.on('permissionQuery', (m) => this.events.emit('permissionQuery', m)),
+      tcp.events.on('serverConfig', (m) => this.events.emit('serverConfig', m)),
       tcp.events.on('error', (e) => this.events.emit('error', e)),
       tcp.events.on('disconnected', () => this.events.emit('disconnected', undefined)),
       tcp.events.on('udpTunnel', (pkt) => this._onTunnelPacket(pkt))
@@ -138,6 +144,10 @@ export class MumbleSession {
 
   sendTextMessage(params: { message: string; channelId?: number; userId?: number }): void {
     this._tcp.sendTextMessage(params)
+  }
+
+  queryPermission(channelId: number): void {
+    this._tcp.queryPermission(channelId)
   }
 
   sendOpusFrame(target: number, opus: Buffer): void {

@@ -156,6 +156,13 @@ export class ProtobufWriter {
     this.bytes(fieldNumber, Buffer.from(value, 'utf8'))
   }
 
+  float(fieldNumber: number, value: number): void {
+    this._pushTag(fieldNumber, 5)
+    const buf = Buffer.allocUnsafe(4)
+    buf.writeFloatLE(value, 0)
+    this._chunks.push(buf)
+  }
+
   finish(): Buffer {
     return Buffer.concat(this._chunks)
   }

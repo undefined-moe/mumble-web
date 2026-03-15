@@ -148,7 +148,7 @@ function sendMetrics(ws: WebSocket, session: Session) {
 function assertClientMessage(msg: unknown): GatewayClientMessage | null {
   if (!msg || typeof msg !== 'object') return null
   const type = (msg as any).type
-  if (type === 'connect' || type === 'disconnect' || type === 'joinChannel' || type === 'textSend' || type === 'ping') {
+  if (type === 'connect' || type === 'disconnect' || type === 'joinChannel' || type === 'textSend' || type === 'queryPermission' || type === 'ping') {
     return msg as GatewayClientMessage
   }
   return null
@@ -232,6 +232,32 @@ function attachMumbleEventForwarders(ws: WebSocket, session: Session): Array<() 
     }),
     client.events.on('denied', (denied) => {
       sendError(ws, 'mumble_denied', 'Permission denied', denied)
+    }),
+    client.events.on('contextActionModify', (m) => {
+      const msg: GatewayServerMessage = { type: 'contextActionModify' }
+      if (m.action != null) msg.action = m.action
+      if (m.text != null) msg.text = m.text
+      if (m.context != null) msg.context = m.context
+      if (m.operation != null) msg.operation = m.operation
+      send(msg)
+    }),
+    client.events.on('permissionQuery', (m) => {
+      const msg: GatewayServerMessage = { type: 'permissionQuery' }
+      if (m.channelId != null) msg.channelId = m.channelId
+      if (m.permissions != null) msg.permissions = m.permissions
+      if (m.flush != null) msg.flush = m.flush
+      send(msg)
+    }),
+    client.events.on('serverConfig', (m) => {
+      const msg: GatewayServerMessage = { type: 'serverConfig' }
+      if (m.maxBandwidth != null) msg.maxBandwidth = m.maxBandwidth
+      if (m.welcomeText != null) msg.welcomeText = m.welcomeText
+      if (m.allowHtml != null) msg.allowHtml = m.allowHtml
+      if (m.messageLength != null) msg.messageLength = m.messageLength
+      if (m.imageMessageLength != null) msg.imageMessageLength = m.imageMessageLength
+      if (m.maxUsers != null) msg.maxUsers = m.maxUsers
+      if (m.recordingAllowed != null) msg.recordingAllowed = m.recordingAllowed
+      send(msg)
     }),
     client.events.on('error', (err) => {
       console.error('[gateway] mumble error:', err)
@@ -531,6 +557,12 @@ wss.on('connection', (ws) => {
       if (msg.channelId != null) params.channelId = msg.channelId
       if (msg.userId != null) params.userId = msg.userId
       client.sendTextMessage(params)
+      return
+    }
+
+    if (msg.type === 'queryPermission') {
+      const client = session.mumble.client
+      client.queryPermission(msg.channelId)
       return
     }
   })

@@ -14,8 +14,11 @@ export enum TcpMessageType {
   TextMessage = 11,
   PermissionDenied = 12,
   CryptSetup = 15,
+  ContextActionModify = 16,
+  PermissionQuery = 20,
   CodecVersion = 21,
-  RequestBlob = 23
+  RequestBlob = 23,
+  ServerConfig = 24
 }
 
 export type VersionMessage = {
@@ -86,11 +89,31 @@ export function encodeAuthenticate(msg: AuthenticateMessage): Buffer {
 
 export type PingMessage = {
   timestamp?: bigint
+  good?: number
+  late?: number
+  lost?: number
+  resync?: number
+  udpPackets?: number
+  tcpPackets?: number
+  udpPingAvg?: number
+  udpPingVar?: number
+  tcpPingAvg?: number
+  tcpPingVar?: number
 }
 
 export function encodePing(msg: PingMessage): Buffer {
   const w = new ProtobufWriter()
   if (msg.timestamp != null) w.uint64(1, msg.timestamp)
+  if (msg.good != null) w.uint32(2, msg.good)
+  if (msg.late != null) w.uint32(3, msg.late)
+  if (msg.lost != null) w.uint32(4, msg.lost)
+  if (msg.resync != null) w.uint32(5, msg.resync)
+  if (msg.udpPackets != null) w.uint32(6, msg.udpPackets)
+  if (msg.tcpPackets != null) w.uint32(7, msg.tcpPackets)
+  if (msg.udpPingAvg != null) w.float(8, msg.udpPingAvg)
+  if (msg.udpPingVar != null) w.float(9, msg.udpPingVar)
+  if (msg.tcpPingAvg != null) w.float(10, msg.tcpPingAvg)
+  if (msg.tcpPingVar != null) w.float(11, msg.tcpPingVar)
   return w.finish()
 }
 
@@ -510,4 +533,128 @@ export function encodeRequestBlob(params: {
   for (const s of params.sessionComments ?? []) w.uint32(2, s)
   for (const c of params.channelDescriptions ?? []) w.uint32(3, c)
   return w.finish()
+}
+
+// --- ContextActionModify (type 16) ---
+
+export type ContextActionModifyMessage = {
+  action?: string
+  text?: string
+  context?: number
+  operation?: number
+}
+
+export function decodeContextActionModify(buf: Buffer): ContextActionModifyMessage {
+  const r = new ProtobufReader(buf)
+  const out: ContextActionModifyMessage = {}
+  for (;;) {
+    const tag = r.readTag()
+    if (!tag) break
+    switch (tag.fieldNumber) {
+      case 1:
+        out.action = r.readString()
+        break
+      case 2:
+        out.text = r.readString()
+        break
+      case 3:
+        out.context = r.readUint32()
+        break
+      case 4:
+        out.operation = r.readUint32()
+        break
+      default:
+        r.skip(tag.wireType)
+        break
+    }
+  }
+  return out
+}
+
+// --- PermissionQuery (type 20) ---
+
+export type PermissionQueryMessage = {
+  channelId?: number
+  permissions?: number
+  flush?: boolean
+}
+
+export function decodePermissionQuery(buf: Buffer): PermissionQueryMessage {
+  const r = new ProtobufReader(buf)
+  const out: PermissionQueryMessage = {}
+  for (;;) {
+    const tag = r.readTag()
+    if (!tag) break
+    switch (tag.fieldNumber) {
+      case 1:
+        out.channelId = r.readUint32()
+        break
+      case 2:
+        out.permissions = r.readUint32()
+        break
+      case 3:
+        out.flush = r.readBool()
+        break
+      default:
+        r.skip(tag.wireType)
+        break
+    }
+  }
+  return out
+}
+
+export function encodePermissionQuery(msg: PermissionQueryMessage): Buffer {
+  const w = new ProtobufWriter()
+  if (msg.channelId != null) w.uint32(1, msg.channelId)
+  if (msg.permissions != null) w.uint32(2, msg.permissions)
+  if (msg.flush != null) w.bool(3, msg.flush)
+  return w.finish()
+}
+
+// --- ServerConfig (type 24) ---
+
+export type ServerConfigMessage = {
+  maxBandwidth?: number
+  welcomeText?: string
+  allowHtml?: boolean
+  messageLength?: number
+  imageMessageLength?: number
+  maxUsers?: number
+  recordingAllowed?: boolean
+}
+
+export function decodeServerConfig(buf: Buffer): ServerConfigMessage {
+  const r = new ProtobufReader(buf)
+  const out: ServerConfigMessage = {}
+  for (;;) {
+    const tag = r.readTag()
+    if (!tag) break
+    switch (tag.fieldNumber) {
+      case 1:
+        out.maxBandwidth = r.readUint32()
+        break
+      case 2:
+        out.welcomeText = r.readString()
+        break
+      case 3:
+        out.allowHtml = r.readBool()
+        break
+      case 4:
+        out.messageLength = r.readUint32()
+        break
+      case 5:
+        out.imageMessageLength = r.readUint32()
+        break
+      case 6:
+        out.maxUsers = r.readUint32()
+        break
+      case 7:
+        out.recordingAllowed = r.readBool()
+        break
+      default:
+        r.skip(tag.wireType)
+        break
+    }
+  }
+  return out
 }
