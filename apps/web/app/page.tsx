@@ -12,10 +12,17 @@ import { cn } from '../src/ui/cn'
 
 export default function ConnectPage() {
   const router = useRouter()
-  const {
-    gatewayStatus, status, servers, connect, connectError, init, disconnect,
-    rememberCredentials, savedCredentials, setRememberCredentials, setSavedCredentials
-  } = useGatewayStore()
+  const gatewayStatus = useGatewayStore(s => s.gatewayStatus)
+  const status = useGatewayStore(s => s.status)
+  const servers = useGatewayStore(s => s.servers)
+  const connect = useGatewayStore(s => s.connect)
+  const connectError = useGatewayStore(s => s.connectError)
+  const init = useGatewayStore(s => s.init)
+  const disconnect = useGatewayStore(s => s.disconnect)
+  const rememberCredentials = useGatewayStore(s => s.rememberCredentials)
+  const savedCredentials = useGatewayStore(s => s.savedCredentials)
+  const setRememberCredentials = useGatewayStore(s => s.setRememberCredentials)
+  const setSavedCredentials = useGatewayStore(s => s.setSavedCredentials)
 
   const [serverId, setServerId] = useState('')
   const [username, setUsername] = useState('')

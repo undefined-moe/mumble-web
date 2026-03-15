@@ -20,28 +20,26 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const {
-    vadThreshold,
-    setVadThreshold,
-    vadHoldTimeMs,
-    setVadHoldTimeMs,
-    opusBitrate,
-    setOpusBitrate,
-    uplinkCongestionControlEnabled,
-    setUplinkCongestionControlEnabled,
-    uplinkMaxBufferedAmountBytes,
-    setUplinkMaxBufferedAmountBytes,
-    micEchoCancellation,
-    setMicEchoCancellation,
-    micNoiseSuppression,
-    setMicNoiseSuppression,
-    micAutoGainControl,
-    setMicAutoGainControl,
-    rnnoiseEnabled,
-    setRnnoiseEnabled,
-    selectedInputDeviceId,
-    setSelectedInputDeviceId,
-  } = useGatewayStore()
+  const vadThreshold = useGatewayStore(s => s.vadThreshold)
+  const setVadThreshold = useGatewayStore(s => s.setVadThreshold)
+  const vadHoldTimeMs = useGatewayStore(s => s.vadHoldTimeMs)
+  const setVadHoldTimeMs = useGatewayStore(s => s.setVadHoldTimeMs)
+  const opusBitrate = useGatewayStore(s => s.opusBitrate)
+  const setOpusBitrate = useGatewayStore(s => s.setOpusBitrate)
+  const uplinkCongestionControlEnabled = useGatewayStore(s => s.uplinkCongestionControlEnabled)
+  const setUplinkCongestionControlEnabled = useGatewayStore(s => s.setUplinkCongestionControlEnabled)
+  const uplinkMaxBufferedAmountBytes = useGatewayStore(s => s.uplinkMaxBufferedAmountBytes)
+  const setUplinkMaxBufferedAmountBytes = useGatewayStore(s => s.setUplinkMaxBufferedAmountBytes)
+  const micEchoCancellation = useGatewayStore(s => s.micEchoCancellation)
+  const setMicEchoCancellation = useGatewayStore(s => s.setMicEchoCancellation)
+  const micNoiseSuppression = useGatewayStore(s => s.micNoiseSuppression)
+  const setMicNoiseSuppression = useGatewayStore(s => s.setMicNoiseSuppression)
+  const micAutoGainControl = useGatewayStore(s => s.micAutoGainControl)
+  const setMicAutoGainControl = useGatewayStore(s => s.setMicAutoGainControl)
+  const rnnoiseEnabled = useGatewayStore(s => s.rnnoiseEnabled)
+  const setRnnoiseEnabled = useGatewayStore(s => s.setRnnoiseEnabled)
+  const selectedInputDeviceId = useGatewayStore(s => s.selectedInputDeviceId)
+  const setSelectedInputDeviceId = useGatewayStore(s => s.setSelectedInputDeviceId)
 
   const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([])
 

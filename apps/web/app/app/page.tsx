@@ -1,75 +1,44 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
-import { Button } from '../../components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/card'
-import { Input } from '../../components/ui/input'
+import { useEffect, useRef } from 'react'
 import { useGatewayStore } from '../../src/state/gateway-store'
-import { cn } from '../../src/ui/cn'
 import { VoiceEngine } from '../../src/audio/voice-engine'
 import { canUseWebCodecsOpus, createWebCodecsOpusDecoder, createWebCodecsOpusEncoder } from '../../src/audio/webcodecs-opus'
 import { Rnnoise, type DenoiseState } from '@shiguredo/rnnoise-wasm'
-import { Mic, MicOff, Video, Settings, LogOut, MessageSquare, Users, Hash, Volume2, VolumeX, Activity, Send, BarChart3, PictureInPicture2, Search, X, ChevronDown } from 'lucide-react'
+import { isPipSupported } from '../../components/ui/overlay-panel'
+
+import { useState } from 'react'
 import { MetricsPanel } from '../../components/ui/metrics-panel'
 import { SettingsDialog } from '../../components/ui/settings-dialog'
-import { OverlayPanel, isPipSupported } from '../../components/ui/overlay-panel'
+import { OverlayPanel } from '../../components/ui/overlay-panel'
+import { TopBar } from './_components/top-bar'
+import { ChannelSidebar } from './_components/channel-sidebar'
+import { ChatPanel } from './_components/chat-panel'
+import { UserListSidebar } from './_components/user-list-sidebar'
+import { VoiceControlBar } from './_components/voice-control-bar'
+import { DisconnectedView } from './_components/disconnected-view'
+
+const pipAvailable = isPipSupported()
 
 export default function AppPage() {
-  const {
-    gatewayStatus,
-    status,
-    channelsById,
-    usersById,
-    speakingByUserId,
-    rootChannelId,
-    selfUserId,
-    selectedChannelId,
-    selectChannel,
-    joinSelectedChannel,
-    sendTextToSelectedChannel,
-    chat,
-    metrics,
-    disconnect,
-    init,
-    connectError,
-    clearError,
-    setVoiceSink,
-    sendMicOpus,
-    sendMicEnd,
-    voiceMode,
-    vadThreshold,
-    vadHoldTimeMs,
-    opusBitrate,
-    micEchoCancellation,
-    micNoiseSuppression,
-    micAutoGainControl,
-    rnnoiseEnabled,
-    setVoiceMode,
-    selectedInputDeviceId,
-    selfSpeaking,
-    setSelfSpeaking
-  } = useGatewayStore()
+  const status = useGatewayStore(s => s.status)
+  const init = useGatewayStore(s => s.init)
+  const disconnect = useGatewayStore(s => s.disconnect)
+  const setVoiceSink = useGatewayStore(s => s.setVoiceSink)
+  const sendMicOpus = useGatewayStore(s => s.sendMicOpus)
+  const sendMicEnd = useGatewayStore(s => s.sendMicEnd)
+  const opusBitrate = useGatewayStore(s => s.opusBitrate)
+  const rnnoiseEnabled = useGatewayStore(s => s.rnnoiseEnabled)
 
-  const webCodecsAvailable = canUseWebCodecsOpus()
-
-  const [message, setMessage] = useState('')
-  const [muted, setMuted] = useState(false)
-  const [micEnabled, setMicEnabled] = useState(false)
   const [showMetricsPanel, setShowMetricsPanel] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showOverlay, setShowOverlay] = useState(false)
-  const [pipAvailable, setPipAvailable] = useState(false)
-  const [channelSearch, setChannelSearch] = useState('')
-  const [collapsedChannels, setCollapsedChannels] = useState<Set<number>>(new Set())
-  const [playbackStats, setPlaybackStats] = useState<{ totalQueuedMs: number; maxQueuedMs: number; streams: number } | null>(null)
-  const [captureStats, setCaptureStats] = useState<{ rms: number; sending: boolean } | null>(null)
+
   const voiceRef = useRef<VoiceEngine | null>(null)
   const rnnoiseRef = useRef<{ state: DenoiseState; frameSize: number; buf: Float32Array } | null>(null)
 
   useEffect(() => {
     init()
-    setPipAvailable(isPipSupported())
   }, [init])
 
   useEffect(() => {
@@ -81,22 +50,22 @@ export default function AppPage() {
 
     let cancelled = false
 
-      ; (async () => {
-        try {
-          const rnnoise = await Rnnoise.load()
-          if (cancelled) return
-          const state = rnnoise.createDenoiseState()
-          if (cancelled) {
-            state.destroy()
-            return
-          }
-          rnnoiseRef.current?.state.destroy()
-          rnnoiseRef.current = { state, frameSize: rnnoise.frameSize, buf: new Float32Array(rnnoise.frameSize) }
-        } catch (e) {
-          // eslint-disable-next-line no-console
-          console.warn(`[voice] failed to init RNNoise: ${String(e)}`)
+    ;(async () => {
+      try {
+        const rnnoise = await Rnnoise.load()
+        if (cancelled) return
+        const state = rnnoise.createDenoiseState()
+        if (cancelled) {
+          state.destroy()
+          return
         }
-      })()
+        rnnoiseRef.current?.state.destroy()
+        rnnoiseRef.current = { state, frameSize: rnnoise.frameSize, buf: new Float32Array(rnnoise.frameSize) }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn(`[voice] failed to init RNNoise: ${String(e)}`)
+      }
+    })()
 
     return () => {
       cancelled = true
@@ -122,6 +91,9 @@ export default function AppPage() {
       }
     }
 
+    let lastPlaybackStatsMs = 0
+    let lastCaptureStatsMs = 0
+
     const engine = new VoiceEngine({
       onMicPcm: (pcm, sampleRate) => {
         if (sampleRate !== 48000) return
@@ -136,7 +108,6 @@ export default function AppPage() {
             for (let offset = 0; offset + frameSize <= pcm.length; offset += frameSize) {
               buf.set(pcm.subarray(offset, offset + frameSize))
 
-              // RNNoise assumes 16-bit PCM amplitude.
               for (let i = 0; i < frameSize; i++) {
                 const v = (buf[i] ?? 0) * scale
                 buf[i] = v > 32767 ? 32767 : v < -32768 ? -32768 : v
@@ -164,18 +135,27 @@ export default function AppPage() {
         }
         encoder
           .flush()
-          .catch(() => { })
+          .catch(() => {})
           .finally(() => sendMicEnd())
       },
-      onPlaybackStats: (s) => setPlaybackStats(s),
-      onCaptureStats: (s) => setCaptureStats(s)
+      onPlaybackStats: (s) => {
+        const now = performance.now()
+        if (now - lastPlaybackStatsMs < 200) return
+        lastPlaybackStatsMs = now
+        useGatewayStore.getState().setPlaybackStats(s)
+      },
+      onCaptureStats: (s) => {
+        const now = performance.now()
+        if (now - lastCaptureStatsMs < 100) return
+        lastCaptureStatsMs = now
+        useGatewayStore.getState().setCaptureStats(s)
+      }
     })
     voiceRef.current = engine
 
-    // Sync initial settings
-    engine.setMode(voiceMode)
-    engine.setVadThreshold(vadThreshold)
-    engine.setVadHoldTime(vadHoldTimeMs)
+    engine.setMode(useGatewayStore.getState().voiceMode)
+    engine.setVadThreshold(useGatewayStore.getState().vadThreshold)
+    engine.setVadHoldTime(useGatewayStore.getState().vadHoldTimeMs)
 
     setVoiceSink((frame) => {
       if (!canUseWebCodecsOpus()) return
@@ -207,619 +187,60 @@ export default function AppPage() {
     }
   }, [sendMicEnd, sendMicOpus, setVoiceSink, opusBitrate])
 
-  useEffect(() => {
-    if (status === 'connected') {
-      voiceRef.current?.enableAudio()
-    } else {
-      voiceRef.current?.disableMic()
-      setMicEnabled(false)
-    }
-  }, [status])
-
-  // Update voice engine when settings change
-  useEffect(() => {
-    voiceRef.current?.setMode(voiceMode)
-  }, [voiceMode])
-
-  useEffect(() => {
-    voiceRef.current?.setVadThreshold(vadThreshold)
-  }, [vadThreshold])
-
-  useEffect(() => {
-    voiceRef.current?.setVadHoldTime(vadHoldTimeMs)
-  }, [vadHoldTimeMs])
-
-  useEffect(() => {
-    if (!micEnabled) return
-    const options: Parameters<VoiceEngine['switchDevice']>[0] = {
-      echoCancellation: micEchoCancellation,
-      noiseSuppression: micNoiseSuppression,
-      autoGainControl: micAutoGainControl
-    }
-    // With `exactOptionalPropertyTypes`, omit optional keys instead of passing `undefined`.
-    if (selectedInputDeviceId != null) options.deviceId = selectedInputDeviceId
-
-    voiceRef.current?.switchDevice(options).catch((e) => {
-      console.warn(`[voice] failed to switch device: ${e}`)
-    })
-  }, [micEnabled, micEchoCancellation, micNoiseSuppression, micAutoGainControl, selectedInputDeviceId])
-
-  useEffect(() => {
-    setSelfSpeaking(captureStats?.sending ?? false)
-  }, [captureStats?.sending, setSelfSpeaking])
-
-  const root = rootChannelId != null ? channelsById[rootChannelId] : undefined
-  const selfChannelId = selfUserId != null ? usersById[selfUserId]?.channelId ?? null : null
-
-  const channelTree = useMemo(() => {
-    if (rootChannelId == null) return []
-    const all = Object.values(channelsById)
-    const byParent = new Map<number | null, number[]>()
-    for (const ch of all) {
-      const key = ch.parentId ?? null
-      const arr = byParent.get(key) ?? []
-      arr.push(ch.id)
-      byParent.set(key, arr)
-    }
-    for (const [, ids] of byParent) ids.sort((a, b) => (channelsById[a]?.name ?? '').localeCompare(channelsById[b]?.name ?? ''))
-
-    const build = (parentId: number | null, depth: number): Array<{ id: number; depth: number }> => {
-      const ids = byParent.get(parentId) ?? []
-      const out: Array<{ id: number; depth: number }> = []
-      for (const id of ids) {
-        out.push({ id, depth })
-        out.push(...build(id, depth + 1))
-      }
-      return out
-    }
-
-    return build(null, 0)
-  }, [channelsById, rootChannelId])
-
-  const childrenByParent = useMemo(() => {
-    const map = new Map<number, number[]>()
-    for (const node of channelTree) {
-      const ch = channelsById[node.id]
-      if (!ch) continue
-      const parentId = ch.parentId
-      if (parentId == null) continue
-      const arr = map.get(parentId) ?? []
-      arr.push(node.id)
-      map.set(parentId, arr)
-    }
-    return map
-  }, [channelTree, channelsById])
-
-  type TreeNode =
-    | { kind: 'channel'; id: number; depth: number }
-    | { kind: 'user'; userId: number; userName: string; channelId: number; depth: number }
-
-  const displayedNodes = useMemo((): TreeNode[] => {
-    const query = channelSearch.trim().toLowerCase()
-
-    if (!query) {
-      const result: TreeNode[] = []
-      let skipBelowDepth = -1
-      for (const node of channelTree) {
-        if (skipBelowDepth >= 0 && node.depth > skipBelowDepth) continue
-        skipBelowDepth = -1
-        result.push({ kind: 'channel', id: node.id, depth: node.depth })
-        if (collapsedChannels.has(node.id)) skipBelowDepth = node.depth
-      }
-      return result
-    }
-
-    // Channels matching by name
-    const channelMatchIds = new Set<number>()
-    for (const node of channelTree) {
-      const ch = channelsById[node.id]
-      if (ch && ch.name.toLowerCase().includes(query)) {
-        channelMatchIds.add(node.id)
-      }
-    }
-
-    // Users matching by name → also include their channels
-    const userMatchesByChannel = new Map<number, Array<{ userId: number; userName: string }>>()
-    for (const u of Object.values(usersById)) {
-      if (u.channelId == null) continue
-      if (u.name.toLowerCase().includes(query)) {
-        const arr = userMatchesByChannel.get(u.channelId) ?? []
-        arr.push({ userId: u.id, userName: u.name })
-        userMatchesByChannel.set(u.channelId, arr)
-      }
-    }
-
-    // Collect all channel IDs that should be visible (matches + user-match hosts)
-    const visibleChannelIds = new Set<number>(channelMatchIds)
-    for (const chId of userMatchesByChannel.keys()) {
-      visibleChannelIds.add(chId)
-    }
-
-    // Walk up ancestor chains
-    const ancestorIds = new Set<number>()
-    for (const id of visibleChannelIds) {
-      let current = channelsById[id]
-      while (current && current.parentId != null) {
-        if (ancestorIds.has(current.parentId)) break
-        ancestorIds.add(current.parentId)
-        current = channelsById[current.parentId]
-      }
-    }
-
-    // Build result: channels + matched users inserted after their channel
-    const result: TreeNode[] = []
-    for (const node of channelTree) {
-      if (!visibleChannelIds.has(node.id) && !ancestorIds.has(node.id)) continue
-      result.push({ kind: 'channel', id: node.id, depth: node.depth })
-
-      const matchedUsers = userMatchesByChannel.get(node.id)
-      if (matchedUsers) {
-        for (const u of matchedUsers.sort((a, b) => a.userName.localeCompare(b.userName))) {
-          result.push({ kind: 'user', userId: u.userId, userName: u.userName, channelId: node.id, depth: node.depth + 1 })
-        }
-      }
-    }
-    return result
-  }, [channelTree, channelsById, usersById, channelSearch, collapsedChannels])
-
-  const toggleCollapse = useCallback((channelId: number) => {
-    setCollapsedChannels(prev => {
-      const next = new Set(prev)
-      if (next.has(channelId)) next.delete(channelId)
-      else next.add(channelId)
-      return next
-    })
-  }, [])
-
-  const usersInSelectedChannel = useMemo(() => {
-    if (selectedChannelId == null) return []
-    return Object.values(usersById)
-      .filter((u) => u.channelId === selectedChannelId)
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [usersById, selectedChannelId])
-
-  // Scroll chat to bottom on new message
-  const chatEndRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chat])
-
   if (status !== 'connected') {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-background p-6">
-        <Card className="w-full max-w-md border-destructive/20 bg-destructive/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <Activity className="h-5 w-5" />
-              {status === 'reconnecting' ? 'Reconnecting...' : 'Disconnected'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">Gateway Status: <span className="font-mono text-foreground">{gatewayStatus}</span></p>
-            {connectError ? <p className="text-sm rounded-md bg-destructive/10 p-2 text-destructive">{connectError}</p> : null}
-            <div className="flex gap-2">
-              <Button onClick={() => (window.location.href = '/')}>Back to Login</Button>
-              {status === 'reconnecting' ? (
-                <Button variant="secondary" onClick={() => disconnect()}>
-                  Cancel Reconnect
-                </Button>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      </main>
-    )
+    return <DisconnectedView />
   }
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      {/* Top Bar */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-            <Hash className="h-4 w-4 text-primary" />
-          </div>
-          <h1 className="font-semibold text-sm">Mumble Web</h1>
-          <div className="mx-2 h-4 w-[1px] bg-border" />
-          <p
-            className="text-xs text-muted-foreground flex items-center gap-3 cursor-pointer hover:text-foreground transition-colors"
-            onClick={() => setShowMetricsPanel(true)}
-            title="点击查看详细指标"
-          >
-            <span className="flex items-center gap-1"><Activity className="h-3 w-3" /> {metrics.wsRttMs != null ? Math.round(metrics.wsRttMs) : '-'}ms</span>
-            <span className="hidden sm:inline">Server: {metrics.serverRttMs != null ? Math.round(metrics.serverRttMs) : '-'}ms</span>
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={!pipAvailable}
-            onClick={() => setShowOverlay((v) => !v)}
-            title={pipAvailable ? 'Speaker Overlay (PiP)' : 'PiP not supported in this browser'}
-            className={cn("text-muted-foreground hover:text-foreground", showOverlay && "text-primary")}
-          >
-            <PictureInPicture2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowMetricsPanel(true)}
-            title="Connection Metrics"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <BarChart3 className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" title="Settings" onClick={() => setShowSettings(true)} className="text-muted-foreground hover:text-foreground">
-            <Settings className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => disconnect()} title="Disconnect">
-            <LogOut className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-          </Button>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left: Channel Tree */}
-        <aside className="hidden w-64 flex-col border-r border-border bg-card/30 md:flex">
-          <div className="border-b border-border px-3 py-2 space-y-1.5">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={channelSearch}
-                onChange={(e) => setChannelSearch(e.target.value)}
-                placeholder="Search channels..."
-                className="w-full rounded-md border border-border bg-card/30 py-1 pl-7 pr-7 text-xs text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
-              />
-              {channelSearch && (
-                <button
-                  onClick={() => setChannelSearch('')}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            <div className="space-y-0.5">
-              <div className="px-2 py-1.5 text-xs font-semibold text-primary/80 truncate">
-                {root?.name || 'Root'}
-              </div>
-              {displayedNodes.map((node) => {
-                if (node.kind === 'user') {
-                  const isSelf = node.userId === selfUserId
-                  const isSpeaking = isSelf ? selfSpeaking : speakingByUserId[node.userId]
-                  return (
-                    <div
-                      key={`u-${node.userId}`}
-                      className={cn(
-                        'flex items-center gap-2 rounded-md px-2 py-1 text-xs',
-                        isSpeaking
-                          ? 'text-green-500'
-                          : 'text-muted-foreground'
-                      )}
-                      style={{ paddingLeft: 8 + node.depth * 12 }}
-                    >
-                      <span className="w-4 shrink-0" />
-                      <div className={cn(
-                        'flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-accent/50 text-[8px] font-medium uppercase',
-                        isSpeaking && 'bg-green-500 text-white'
-                      )}>
-                        {node.userName.slice(0, 2)}
-                      </div>
-                      <span className={cn('truncate', isSelf && 'text-primary')}>
-                        {node.userName}{isSelf ? ' (You)' : ''}
-                      </span>
-                    </div>
-                  )
-                }
-
-                const ch = channelsById[node.id]
-                if (!ch) return null
-                const selected = node.id === selectedChannelId
-                const isJoined = node.id === selfChannelId
-                const hasUsers = Object.values(usersById).some(u => u.channelId === node.id)
-                const hasChildren = childrenByParent.has(node.id)
-                const isCollapsed = collapsedChannels.has(node.id)
-
-                return (
-                  <button
-                    key={node.id}
-                    className={cn(
-                      'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-                      selected
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : isJoined
-                          ? 'bg-accent/50 text-accent-foreground font-medium'
-                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                    )}
-                    style={{ paddingLeft: 8 + node.depth * 12 }}
-                    onClick={() => selectChannel(node.id)}
-                    onDoubleClick={() => {
-                      selectChannel(node.id)
-                      joinSelectedChannel()
-                    }}
-                  >
-                    {hasChildren ? (
-                      <span
-                        role="button"
-                        className="shrink-0 rounded-sm p-0.5 hover:bg-accent/50 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          toggleCollapse(node.id)
-                        }}
-                      >
-                        <ChevronDown className={cn(
-                          'h-3 w-3 transition-transform duration-150',
-                          isCollapsed && '-rotate-90'
-                        )} />
-                      </span>
-                    ) : (
-                      <span className="w-4 shrink-0" />
-                    )}
-                    <Volume2 className={cn(
-                      "h-3.5 w-3.5 shrink-0",
-                      isJoined ? "text-green-500" : hasUsers ? "opacity-100" : "opacity-50"
-                    )} />
-                    <span className="truncate">{ch.name || '(unnamed)'}</span>
-                    {isJoined && (
-                      <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-        </aside>
-
-        {/* Middle: Chat */}
-        <main className="flex flex-1 flex-col overflow-hidden bg-background">
-          <div className="flex h-10 shrink-0 items-center border-b border-border px-4">
-            <MessageSquare className="mr-2 h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Chat</span>
-            {selectedChannelId != null && channelsById[selectedChannelId] && (
-              <span className="ml-2 text-xs text-muted-foreground">in {channelsById[selectedChannelId].name}</span>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {chat.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-muted-foreground opacity-50">
-                <MessageSquare className="mb-2 h-8 w-8" />
-                <p className="text-sm">No messages yet</p>
-              </div>
-            ) : (
-              chat.map((m) => {
-                const isSystem = m.senderId === 0
-                const isMe = m.senderId === selfUserId
-                const user = usersById[m.senderId]
-                return (
-                  <div key={m.id} className={cn("flex flex-col gap-1 text-sm animate-in slide-in-from-left-2", isSystem && "items-center")}>
-                    {!isSystem && (
-                      <div className="flex items-baseline gap-2">
-                        <span className={cn("font-semibold text-xs", isMe ? "text-primary" : "text-foreground")}>
-                          {user?.name || (isMe ? 'Me' : `#${m.senderId}`)}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground opacity-50">
-                          {new Date(m.timestampMs).toLocaleTimeString()}
-                        </span>
-                      </div>
-                    )}
-                    <div className={cn(
-                      "rounded-lg px-3 py-2 max-w-[85%]",
-                      isSystem ? "bg-muted text-xs text-muted-foreground" :
-                        isMe ? "bg-primary text-primary-foreground self-end" : "bg-accent/50 text-foreground self-start"
-                    )}>
-                      {m.message}
-                    </div>
-                  </div>
-                )
-              })
-            )}
-            <div ref={chatEndRef} />
-          </div>
-
-          <div className="p-4 pt-2">
-            <form
-              className="flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault()
-                if (!message.trim()) return
-                sendTextToSelectedChannel(message)
-                setMessage('')
-              }}
-            >
-              <Input
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder={selectedChannelId ? `Message ${channelsById[selectedChannelId]?.name}...` : "Send a message..."}
-                className="flex-1"
-              />
-              <Button type="submit" size="icon" disabled={!message.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
-            </form>
-          </div>
-        </main>
-
-        {/* Right: User List */}
-        <aside className="hidden w-64 flex-col border-l border-border bg-card/30 lg:flex">
-          <div className="flex h-10 items-center justify-between border-b border-border px-4">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Users</span>
-            <span className="text-xs text-muted-foreground">{usersInSelectedChannel.length} online</span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            <ul className="space-y-1">
-              {usersInSelectedChannel.map(u => {
-                const isSelf = u.id === selfUserId
-                const isSpeaking = isSelf ? selfSpeaking : speakingByUserId[u.id]
-                const hasServerMute = u.mute || u.suppress
-                const hasServerDeaf = u.deaf
-                const hasSelfMute = u.selfMute && !hasServerMute
-                const hasSelfDeaf = u.selfDeaf && !hasServerDeaf
-                return (
-                  <li
-                    key={u.id}
-                    className={cn(
-                      "group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-all",
-                      isSpeaking ? "bg-green-500/10 text-green-500 shadow-sm ring-1 ring-green-500/20" : "hover:bg-accent text-foreground"
-                    )}
-                  >
-                    <div className={cn(
-                      "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/50 text-xs font-medium uppercase",
-                      isSpeaking && "bg-green-500 text-white animate-pulse"
-                    )}>
-                      {u.name.slice(0, 2)}
-                      {isSpeaking && <span className="absolute -bottom-0.5 -right-0.5 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />}
-                    </div>
-                    <div className="flex flex-1 items-center gap-1 overflow-hidden">
-                      <span className={cn("truncate font-medium", isSelf && "text-primary")}>{u.name} {isSelf && '(You)'}</span>
-                      <div className="ml-auto flex shrink-0 items-center gap-0.5">
-                        {(hasServerMute || hasSelfMute) && (
-                          <span title={u.suppress ? 'Suppressed by server' : hasServerMute ? 'Muted by server' : 'Self muted'}>
-                            <MicOff className={cn("h-3.5 w-3.5", hasServerMute ? "text-red-500" : "text-muted-foreground/70")} />
-                          </span>
-                        )}
-                        {(hasServerDeaf || hasSelfDeaf) && (
-                          <span title={hasServerDeaf ? 'Deafened by server' : 'Self deafened'}>
-                            <VolumeX className={cn("h-3.5 w-3.5", hasServerDeaf ? "text-red-500" : "text-muted-foreground/70")} />
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        </aside>
-      </div>
-
-      {/* Bottom Bar: Voice Controls */}
-      <footer className="shrink-0 border-t border-border bg-card p-4">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4">
-          {/* Left: Audio Toggle */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant={muted ? "destructive" : "secondary"}
-              size="sm"
-              className="w-32 transition-all"
-              onClick={() => {
-                const newMuted = !muted
-                setMuted(newMuted)
-                voiceRef.current?.setMuted(newMuted)
-              }}
-            >
-              {muted ? <VolumeX className="mr-2 h-4 w-4" /> : <Volume2 className="mr-2 h-4 w-4" />}
-              {muted ? 'Muted' : 'Unmuted'}
-            </Button>
-
-            <div className="h-8 w-[1px] bg-border" />
-
-            <Button
-              variant={micEnabled ? (captureStats?.sending ? "destructive" : "secondary") : "outline"}
-              size="icon"
-              disabled={status !== 'connected' || !webCodecsAvailable}
-              className={cn("rounded-full h-10 w-10", micEnabled && captureStats?.sending && "animate-pulse bg-red-500/20 text-red-500 hover:bg-red-500/30 border-red-500/50")}
-              onClick={async () => {
-                if (micEnabled) {
-                  voiceRef.current?.disableMic()
-                  setMicEnabled(false)
-                } else {
-                  try {
-                    const options: Parameters<VoiceEngine['enableMic']>[0] = {
-                      echoCancellation: micEchoCancellation,
-                      noiseSuppression: micNoiseSuppression,
-                      autoGainControl: micAutoGainControl
-                    }
-                    // With `exactOptionalPropertyTypes`, omit optional keys instead of passing `undefined`.
-                    if (selectedInputDeviceId != null) options.deviceId = selectedInputDeviceId
-
-                    await voiceRef.current?.enableMic(options)
-                    setMicEnabled(true)
-                  } catch (e) {
-                    alert(`Failed to access microphone: ${e}`)
-                  }
-                }
-              }}
-            >
-              {micEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-            </Button>
-
-            {micEnabled && (
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-medium uppercase text-muted-foreground w-8">Mode</span>
-                  <div className="flex rounded-md border border-input p-0.5">
-                    <button
-                      onClick={() => setVoiceMode('vad')}
-                      className={cn("px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors", voiceMode === 'vad' ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
-                    >
-                      VAD
-                    </button>
-                    <button
-                      onClick={() => setVoiceMode('ptt')}
-                      className={cn("px-2 py-0.5 text-[10px] font-medium rounded-sm transition-colors", voiceMode === 'ptt' ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
-                    >
-                      PTT
-                    </button>
-                  </div>
-                </div>
-
-                {voiceMode === 'ptt' && (
-                  <Button
-                    size="sm"
-                    className="h-6 text-xs w-full"
-                    onPointerDown={() => voiceRef.current?.setPttActive(true)}
-                    onPointerUp={() => voiceRef.current?.setPttActive(false)}
-                    onPointerLeave={() => voiceRef.current?.setPttActive(false)}
-                  >
-                    Hold to Talk
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Right: Metrics */}
-          <div className="hidden sm:flex items-center gap-4 text-xs text-muted-foreground">
-            <div className="flex flex-col items-end">
-              <span>Buffer: {playbackStats ? `${Math.round(playbackStats.totalQueuedMs)}ms` : '-'}</span>
-              <span className="text-[10px] opacity-70">Jitter: {metrics.voiceDownlinkJitterMs ?? 0}ms</span>
-            </div>
-            <div className="h-8 w-[1px] bg-border" />
-            <div className="flex flex-col items-end">
-              <span>Mic: {captureStats ? `${(captureStats.rms * 100).toFixed(1)}%` : '-'}</span>
-              <span className="text-[10px] opacity-70">{captureStats?.sending ? 'Sending' : 'Silent'}</span>
-            </div>
-          </div>
-        </div>
-      </footer>
-
-      {/* Metrics Panel Modal */}
-      <MetricsPanel
-        metrics={metrics}
-        playbackStats={playbackStats}
-        captureStats={captureStats}
-        open={showMetricsPanel}
-        onOpenChange={setShowMetricsPanel}
+      <TopBar
+        pipAvailable={pipAvailable}
+        showOverlay={showOverlay}
+        onShowMetrics={() => setShowMetricsPanel(true)}
+        onShowSettings={() => setShowSettings(true)}
+        onToggleOverlay={() => setShowOverlay(v => !v)}
+        onDisconnect={disconnect}
       />
 
-      {/* Settings Modal */}
+      <div className="flex flex-1 overflow-hidden">
+        <ChannelSidebar />
+        <ChatPanel />
+        <UserListSidebar />
+      </div>
+
+      <VoiceControlBar voiceRef={voiceRef} />
+
+      {showMetricsPanel && (
+        <MetricsPanelWrapper
+          onOpenChange={setShowMetricsPanel}
+        />
+      )}
+
       <SettingsDialog
         open={showSettings}
         onOpenChange={setShowSettings}
       />
 
-      {/* Speaker Overlay */}
       <OverlayPanel
         open={showOverlay}
         onOpenChange={setShowOverlay}
       />
     </div>
+  )
+}
+
+function MetricsPanelWrapper({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
+  const metrics = useGatewayStore(s => s.metrics)
+  const playbackStats = useGatewayStore(s => s.playbackStats)
+  const captureStats = useGatewayStore(s => s.captureStats)
+
+  return (
+    <MetricsPanel
+      metrics={metrics}
+      playbackStats={playbackStats}
+      captureStats={captureStats}
+      open
+      onOpenChange={onOpenChange}
+    />
   )
 }

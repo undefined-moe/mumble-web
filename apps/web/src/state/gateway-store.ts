@@ -29,6 +29,17 @@ type ChatItem = {
   timestampMs: number
 }
 
+export type PlaybackStats = {
+  totalQueuedMs: number
+  maxQueuedMs: number
+  streams: number
+}
+
+export type CaptureStats = {
+  rms: number
+  sending: boolean
+}
+
 type Metrics = {
   wsRttMs?: number
   serverRttMs?: number
@@ -94,6 +105,8 @@ type GatewayStore = {
   selectedChannelId: number | null
   chat: ChatItem[]
   metrics: Metrics
+  playbackStats: PlaybackStats | null
+  captureStats: CaptureStats | null
 
   // Audio settings (persisted)
   voiceMode: VoiceMode
@@ -141,6 +154,8 @@ type GatewayStore = {
   setMicAutoGainControl: (val: boolean) => void
   setRnnoiseEnabled: (val: boolean) => void
   setSelectedInputDeviceId: (deviceId: string | null) => void
+  setPlaybackStats: (stats: PlaybackStats | null) => void
+  setCaptureStats: (stats: CaptureStats | null) => void
   setSelfSpeaking: (speaking: boolean) => void
   setRememberCredentials: (val: boolean) => void
   setSavedCredentials: (creds: SavedCredentials | null) => void
@@ -188,12 +203,23 @@ export const useGatewayStore = create<GatewayStore>()(
         uplink.lastStatsAtMs = now
 
         const ws = get()._ws
+        const newQueue = uplink.queue.length
+        const newDropped = uplink.droppedTotal
+        const newBuffered = ws && ws.readyState === WebSocket.OPEN ? ws.bufferedAmount : 0
+
+        const prev = get().metrics
+        if (
+          prev.uplinkQueueFrames === newQueue &&
+          prev.uplinkDroppedFramesTotal === newDropped &&
+          prev.uplinkClientBufferedAmountBytes === newBuffered
+        ) return
+
         set((s) => ({
           metrics: {
             ...s.metrics,
-            uplinkQueueFrames: uplink.queue.length,
-            uplinkDroppedFramesTotal: uplink.droppedTotal,
-            uplinkClientBufferedAmountBytes: ws && ws.readyState === WebSocket.OPEN ? ws.bufferedAmount : 0,
+            uplinkQueueFrames: newQueue,
+            uplinkDroppedFramesTotal: newDropped,
+            uplinkClientBufferedAmountBytes: newBuffered,
           },
         }))
       }
@@ -268,6 +294,8 @@ export const useGatewayStore = create<GatewayStore>()(
       selectedChannelId: null,
       chat: [],
       metrics: {},
+      playbackStats: null,
+      captureStats: null,
 
       voiceMode: 'vad',
       vadThreshold: 0.02,
@@ -361,13 +389,24 @@ export const useGatewayStore = create<GatewayStore>()(
               }
             }
 
+            const jitterVal = maxJitterMs ? Math.round(maxJitterMs * 10) / 10 : 0
+            const prev = get().metrics
+            const metricsChanged =
+              prev.voiceDownlinkJitterMs !== jitterVal ||
+              prev.voiceDownlinkMissingFramesTotal !== missing ||
+              prev.voiceDownlinkOutOfOrderFramesTotal !== outOfOrder
+
+            if (!metricsChanged && !speakingChanged) return
+
             set((s) => ({
-              metrics: {
-                ...s.metrics,
-                voiceDownlinkJitterMs: maxJitterMs ? Math.round(maxJitterMs * 10) / 10 : 0,
-                voiceDownlinkMissingFramesTotal: missing,
-                voiceDownlinkOutOfOrderFramesTotal: outOfOrder,
-              },
+              ...(metricsChanged ? {
+                metrics: {
+                  ...s.metrics,
+                  voiceDownlinkJitterMs: jitterVal,
+                  voiceDownlinkMissingFramesTotal: missing,
+                  voiceDownlinkOutOfOrderFramesTotal: outOfOrder,
+                },
+              } : {}),
               ...(speakingChanged ? { speakingByUserId: speakingUpdate } : {}),
             }))
           }, 100)
@@ -448,12 +487,13 @@ export const useGatewayStore = create<GatewayStore>()(
             case 'pong': {
               const sent = typeof msg.clientTimeMs === 'number' ? msg.clientTimeMs : null
               if (sent == null) return
-              const rttMs = nowMs() - sent
+              const rttMs = Math.round(Math.max(0, nowMs() - sent))
               if (!Number.isFinite(rttMs)) return
+              if (get().metrics.wsRttMs === rttMs) return
               set((s) => ({
                 metrics: {
                   ...s.metrics,
-                  wsRttMs: Math.max(0, rttMs),
+                  wsRttMs: rttMs,
                 },
               }))
               return
@@ -497,6 +537,8 @@ export const useGatewayStore = create<GatewayStore>()(
                 selectedChannelId: null,
                 chat: [],
                 metrics: {},
+                playbackStats: null,
+                captureStats: null,
               })
 
               if (shouldReconnect) {
@@ -641,25 +683,31 @@ export const useGatewayStore = create<GatewayStore>()(
               return
             }
             case 'metrics': {
+              const update: Record<string, unknown> = {
+                serverRttMs: msg.serverRttMs,
+                wsBufferedAmountBytes: msg.wsBufferedAmountBytes,
+                voiceDownlinkFramesTotal: msg.voiceDownlinkFramesTotal,
+                voiceDownlinkBytesTotal: msg.voiceDownlinkBytesTotal,
+                voiceDownlinkDroppedFramesTotal: msg.voiceDownlinkDroppedFramesTotal,
+                voiceUplinkFramesTotal: msg.voiceUplinkFramesTotal,
+                voiceUplinkBytesTotal: msg.voiceUplinkBytesTotal,
+                voiceUplinkPacerQueueFrames: msg.voiceUplinkPacerQueueFrames,
+                voiceUplinkPacerQueueMs: msg.voiceUplinkPacerQueueMs,
+                voiceUplinkPacerDroppedFramesTotal: msg.voiceUplinkPacerDroppedFramesTotal,
+                voiceDownlinkFps: msg.voiceDownlinkFps,
+                voiceDownlinkKbps: msg.voiceDownlinkKbps,
+                voiceDownlinkDroppedFps: msg.voiceDownlinkDroppedFps,
+                voiceUplinkFps: msg.voiceUplinkFps,
+                voiceUplinkKbps: msg.voiceUplinkKbps,
+              }
+              const prev = get().metrics as Record<string, unknown>
+              let changed = false
+              for (const k of Object.keys(update)) {
+                if (prev[k] !== update[k]) { changed = true; break }
+              }
+              if (!changed) return
               set((s) => ({
-                metrics: {
-                  ...s.metrics,
-                  serverRttMs: msg.serverRttMs,
-                  wsBufferedAmountBytes: msg.wsBufferedAmountBytes,
-                  voiceDownlinkFramesTotal: msg.voiceDownlinkFramesTotal,
-                  voiceDownlinkBytesTotal: msg.voiceDownlinkBytesTotal,
-                  voiceDownlinkDroppedFramesTotal: msg.voiceDownlinkDroppedFramesTotal,
-                  voiceUplinkFramesTotal: msg.voiceUplinkFramesTotal,
-                  voiceUplinkBytesTotal: msg.voiceUplinkBytesTotal,
-                  voiceUplinkPacerQueueFrames: msg.voiceUplinkPacerQueueFrames,
-                  voiceUplinkPacerQueueMs: msg.voiceUplinkPacerQueueMs,
-                  voiceUplinkPacerDroppedFramesTotal: msg.voiceUplinkPacerDroppedFramesTotal,
-                  voiceDownlinkFps: msg.voiceDownlinkFps,
-                  voiceDownlinkKbps: msg.voiceDownlinkKbps,
-                  voiceDownlinkDroppedFps: msg.voiceDownlinkDroppedFps,
-                  voiceUplinkFps: msg.voiceUplinkFps,
-                  voiceUplinkKbps: msg.voiceUplinkKbps,
-                },
+                metrics: { ...s.metrics, ...update } as Metrics,
               }))
               return
             }
@@ -721,6 +769,8 @@ export const useGatewayStore = create<GatewayStore>()(
             selectedChannelId: null,
             chat: [],
             metrics: {},
+            playbackStats: null,
+            captureStats: null,
             _reconnectAttempt: attempt,
             _reconnectTimeout: id,
             _sessionReconnectAttempt: 0,
@@ -755,6 +805,8 @@ export const useGatewayStore = create<GatewayStore>()(
           selectedChannelId: null,
           chat: [],
           metrics: {},
+          playbackStats: null,
+          captureStats: null,
           _lastConnectArgs: null,
           _connectedOnce: false,
           _reconnectAttempt: 0,
@@ -893,6 +945,32 @@ export const useGatewayStore = create<GatewayStore>()(
       setMicAutoGainControl: (val) => set({ micAutoGainControl: val }),
       setRnnoiseEnabled: (val) => set({ rnnoiseEnabled: val }),
       setSelectedInputDeviceId: (deviceId) => set({ selectedInputDeviceId: deviceId }),
+      setPlaybackStats: (stats) => {
+        const prev = get().playbackStats
+        if (
+          prev && stats &&
+          Math.round(prev.totalQueuedMs) === Math.round(stats.totalQueuedMs) &&
+          Math.round(prev.maxQueuedMs) === Math.round(stats.maxQueuedMs) &&
+          prev.streams === stats.streams
+        ) return
+        set({ playbackStats: stats ? { totalQueuedMs: Math.round(stats.totalQueuedMs), maxQueuedMs: Math.round(stats.maxQueuedMs), streams: stats.streams } : null })
+      },
+      setCaptureStats: (stats) => {
+        const sending = stats?.sending ?? false
+        const rmsRounded = stats ? Math.round(stats.rms * 1000) / 1000 : 0
+        const prev = get()
+        const speakingChanged = prev.selfSpeaking !== sending
+        const statsChanged = !prev.captureStats !== !stats ||
+          (prev.captureStats && stats && (
+            prev.captureStats.sending !== stats.sending ||
+            Math.round(prev.captureStats.rms * 1000) !== Math.round(rmsRounded * 1000)
+          ))
+        if (!statsChanged && !speakingChanged) return
+        set({
+          ...(statsChanged ? { captureStats: stats ? { rms: rmsRounded, sending } : null } : {}),
+          ...(speakingChanged ? { selfSpeaking: sending } : {}),
+        })
+      },
       setSelfSpeaking: (speaking) => set({ selfSpeaking: speaking }),
       setRememberCredentials: (val) => {
         set({ rememberCredentials: val })

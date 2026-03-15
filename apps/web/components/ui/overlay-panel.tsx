@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useGatewayStore } from '../../src/state/gateway-store'
 import { cn } from '../../src/ui/cn'
@@ -46,21 +46,28 @@ function copyStylesToWindow(target: Window) {
 }
 
 function SpeakerList() {
-  const { usersById, speakingByUserId, selfSpeaking, selfUserId, channelsById, selectedChannelId } =
-    useGatewayStore()
+  const usersById = useGatewayStore(s => s.usersById)
+  const speakingByUserId = useGatewayStore(s => s.speakingByUserId)
+  const selfSpeaking = useGatewayStore(s => s.selfSpeaking)
+  const selfUserId = useGatewayStore(s => s.selfUserId)
+  const channelsById = useGatewayStore(s => s.channelsById)
+  const selectedChannelId = useGatewayStore(s => s.selectedChannelId)
 
   const selfChannelId = selfUserId != null ? (usersById[selfUserId]?.channelId ?? null) : null
   const channelId = selfChannelId ?? selectedChannelId
   const channel = channelId != null ? channelsById[channelId] : null
 
-  const users = Object.values(usersById)
-    .filter((u) => u.channelId === channelId)
-    .sort((a, b) => {
-      const as = speakingByUserId[a.id] ? 1 : 0
-      const bs = speakingByUserId[b.id] ? 1 : 0
-      if (as !== bs) return bs - as
-      return a.name.localeCompare(b.name)
-    })
+  const users = useMemo(() =>
+    Object.values(usersById)
+      .filter((u) => u.channelId === channelId)
+      .sort((a, b) => {
+        const as = speakingByUserId[a.id] ? 1 : 0
+        const bs = speakingByUserId[b.id] ? 1 : 0
+        if (as !== bs) return bs - as
+        return a.name.localeCompare(b.name)
+      }),
+    [usersById, channelId, speakingByUserId]
+  )
 
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
