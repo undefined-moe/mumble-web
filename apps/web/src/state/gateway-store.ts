@@ -130,6 +130,7 @@ type GatewayStore = {
 
   // Audio settings (persisted)
   voiceMode: VoiceMode
+  pttKey: string
   vadThreshold: number
   vadHoldTimeMs: number
   opusBitrate: number
@@ -164,6 +165,7 @@ type GatewayStore = {
   joinSelectedChannel: () => void
   sendTextToSelectedChannel: (message: string) => void
   setVoiceMode: (mode: VoiceMode) => void
+  setPttKey: (key: string) => void
   setVadThreshold: (val: number) => void
   setVadHoldTimeMs: (val: number) => void
   setOpusBitrate: (bitrate: number) => void
@@ -321,6 +323,7 @@ export const useGatewayStore = create<GatewayStore>()(
       mumbleServerConfig: {},
 
       voiceMode: 'vad',
+      pttKey: ' ',
       vadThreshold: 0.02,
       vadHoldTimeMs: 200,
       opusBitrate: 24000,
@@ -1022,6 +1025,7 @@ export const useGatewayStore = create<GatewayStore>()(
       },
 
       setVoiceMode: (mode) => set({ voiceMode: mode }),
+      setPttKey: (key) => set({ pttKey: key }),
       setVadThreshold: (val) => set({ vadThreshold: val }),
       setVadHoldTimeMs: (val) => set({ vadHoldTimeMs: val }),
       setOpusBitrate: (bitrate) => set({ opusBitrate: bitrate }),
@@ -1075,6 +1079,7 @@ export const useGatewayStore = create<GatewayStore>()(
         rememberCredentials: state.rememberCredentials,
         savedCredentials: state.savedCredentials,
         voiceMode: state.voiceMode,
+        pttKey: state.pttKey,
         vadThreshold: state.vadThreshold,
         vadHoldTimeMs: state.vadHoldTimeMs,
         opusBitrate: state.opusBitrate,

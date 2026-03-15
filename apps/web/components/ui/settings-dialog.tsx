@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './card'
 import { Input } from './input'
 import { useGatewayStore } from '../../src/state/gateway-store'
-import { Mic, Shield, Wifi, AudioWaveform } from 'lucide-react'
+import { Mic, Shield, Wifi, AudioWaveform, Keyboard } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog'
+import { formatKeyLabel } from '../../src/audio/use-ptt-keyboard'
 
 function clampNumber(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min
@@ -38,10 +39,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const setMicAutoGainControl = useGatewayStore(s => s.setMicAutoGainControl)
   const rnnoiseEnabled = useGatewayStore(s => s.rnnoiseEnabled)
   const setRnnoiseEnabled = useGatewayStore(s => s.setRnnoiseEnabled)
+  const pttKey = useGatewayStore(s => s.pttKey)
+  const setPttKey = useGatewayStore(s => s.setPttKey)
   const selectedInputDeviceId = useGatewayStore(s => s.selectedInputDeviceId)
   const setSelectedInputDeviceId = useGatewayStore(s => s.setSelectedInputDeviceId)
 
   const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([])
+  const [recordingPttKey, setRecordingPttKey] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -62,6 +66,18 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       navigator.mediaDevices.removeEventListener('devicechange', loadDevices)
     }
   }, [open])
+
+  useEffect(() => {
+    if (!recordingPttKey) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setPttKey(e.key)
+      setRecordingPttKey(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [recordingPttKey, setPttKey])
 
   const uplinkMaxBufferedKb = Math.round(uplinkMaxBufferedAmountBytes / 1024)
 
@@ -117,6 +133,33 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   onChange={(e) => setVadHoldTimeMs(clampNumber(Number(e.target.value), 100, 1000))}
                   className="w-full h-2 accent-primary bg-accent rounded-full appearance-none cursor-pointer"
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Keyboard className="h-4 w-4 text-primary" />
+                Push-to-Talk Shortcut
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">PTT 快捷键</div>
+                  <div className="text-xs text-muted-foreground">PTT 模式下按住此键发言，松开停止。</div>
+                </div>
+                <button
+                  onClick={() => setRecordingPttKey(true)}
+                  className="inline-flex h-8 min-w-[80px] items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-mono transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {recordingPttKey ? (
+                    <span className="animate-pulse text-primary">...</span>
+                  ) : (
+                    formatKeyLabel(pttKey)
+                  )}
+                </button>
               </div>
             </CardContent>
           </Card>

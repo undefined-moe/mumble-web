@@ -6,6 +6,7 @@ import { cn } from '../../../src/ui/cn'
 import { Button } from '../../../components/ui/button'
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react'
 import type { VoiceEngine } from '../../../src/audio/voice-engine'
+import { usePttKeyboard, formatKeyLabel } from '../../../src/audio/use-ptt-keyboard'
 import { canUseWebCodecsOpus } from '../../../src/audio/webcodecs-opus'
 
 interface VoiceControlBarProps {
@@ -27,9 +28,13 @@ export function VoiceControlBar({ voiceRef }: VoiceControlBarProps) {
   const captureSending = useGatewayStore(s => s.captureStats?.sending ?? false)
   const voiceDownlinkJitterMs = useGatewayStore(s => s.metrics.voiceDownlinkJitterMs)
 
+  const pttKey = useGatewayStore(s => s.pttKey)
+
   const [micEnabled, setMicEnabled] = useState(false)
   const [muted, setMuted] = useState(false)
   const webCodecsAvailable = canUseWebCodecsOpus()
+
+  usePttKeyboard(voiceRef)
 
   useEffect(() => {
     if (status === 'connected') {
@@ -136,15 +141,20 @@ export function VoiceControlBar({ voiceRef }: VoiceControlBarProps) {
               </div>
 
               {voiceMode === 'ptt' && (
-                <Button
-                  size="sm"
-                  className="h-6 text-xs w-full"
-                  onPointerDown={() => voiceRef.current?.setPttActive(true)}
-                  onPointerUp={() => voiceRef.current?.setPttActive(false)}
-                  onPointerLeave={() => voiceRef.current?.setPttActive(false)}
-                >
-                  Hold to Talk
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    className="h-6 text-xs"
+                    onPointerDown={() => voiceRef.current?.setPttActive(true)}
+                    onPointerUp={() => voiceRef.current?.setPttActive(false)}
+                    onPointerLeave={() => voiceRef.current?.setPttActive(false)}
+                  >
+                    Hold to Talk
+                  </Button>
+                  <kbd className="inline-flex h-5 items-center rounded border border-input bg-muted px-1.5 text-[10px] font-mono text-muted-foreground">
+                    {formatKeyLabel(pttKey)}
+                  </kbd>
+                </div>
               )}
             </div>
           )}
