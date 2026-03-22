@@ -33,11 +33,14 @@ const zh: Translations = {
 
   // ── Channel sidebar ───────────────────────────────────────────
   channelSidebar: {
-    searchPlaceholder: '\u641C\u7D22\u9891\u9053...',
-    showUsers: '\u663E\u793A\u7528\u6237',
-    you: '\u6211',
-    unnamed: '\uFF08\u672A\u547D\u540D\uFF09',
-    noEnterPermission: '\u65E0\u8FDB\u5165\u6743\u9650',
+    searchPlaceholder: '搜索频道...',
+    showUsers: '显示用户',
+    you: '我',
+    unnamed: '（未命名）',
+    noEnterPermission: '无进入权限',
+    listen: '监听此频道',
+    stopListening: '停止监听',
+    listening: '监听中',
   },
 
   // ── Chat panel ────────────────────────────────────────────────

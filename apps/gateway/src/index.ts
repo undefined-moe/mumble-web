@@ -148,7 +148,7 @@ function sendMetrics(ws: WebSocket, session: Session) {
 function assertClientMessage(msg: unknown): GatewayClientMessage | null {
   if (!msg || typeof msg !== 'object') return null
   const type = (msg as any).type
-  if (type === 'connect' || type === 'disconnect' || type === 'joinChannel' || type === 'textSend' || type === 'queryPermission' || type === 'ping') {
+  if (type === 'connect' || type === 'disconnect' || type === 'joinChannel' || type === 'listenChannel' || type === 'unlistenChannel' || type === 'textSend' || type === 'queryPermission' || type === 'ping') {
     return msg as GatewayClientMessage
   }
   return null
@@ -551,6 +551,18 @@ wss.on('connection', (ws) => {
       return
     }
 
+    if (msg.type === 'listenChannel') {
+      const client = session.mumble.client
+      client.listenChannel(msg.channelId)
+      return
+    }
+
+    if (msg.type === 'unlistenChannel') {
+      const client = session.mumble.client
+      client.unlistenChannel(msg.channelId)
+      return
+    }
+
     if (msg.type === 'textSend') {
       const client = session.mumble.client
       const params: { message: string; channelId?: number; userId?: number } = { message: msg.message }
@@ -572,7 +584,7 @@ wss.on('connection', (ws) => {
   })
 })
 
-httpServer.listen(PORT, () => {
+httpServer.listen(`0.0.0.0:${PORT}`, () => {
   // eslint-disable-next-line no-console
   console.log(`[gateway] listening on http://localhost:${PORT} (ws://localhost:${PORT}/ws)`)
   if (hasWebRoot) {

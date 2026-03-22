@@ -241,6 +241,24 @@ export class MumbleTcpClient {
     this.sendMessage(TcpMessageType.UserState, payload)
   }
 
+  listenChannel(channelId: number): void {
+    if (!Number.isFinite(channelId)) return
+    const payload = encodeUserState({
+      ...(this.selfUserId ? { session: this.selfUserId } : {}),
+      listeningChannelAdd: [channelId]
+    })
+    this.sendMessage(TcpMessageType.UserState, payload)
+  }
+
+  unlistenChannel(channelId: number): void {
+    if (!Number.isFinite(channelId)) return
+    const payload = encodeUserState({
+      ...(this.selfUserId ? { session: this.selfUserId } : {}),
+      listeningChannelRemove: [channelId]
+    })
+    this.sendMessage(TcpMessageType.UserState, payload)
+  }
+
   sendTextMessage(params: { message: string; channelId?: number; userId?: number }): void {
     const message = params.message?.toString?.() ?? ''
     if (!message.trim()) return
@@ -399,6 +417,16 @@ export class MumbleTcpClient {
             this._requestedTextureBlobs.delete(u.session)
           } else if (u.texture == null && prev?.texture) {
             next.texture = prev.texture
+          }
+
+          // Track listening channels (incremental add/remove)
+          if (u.listeningChannelAdd.length || u.listeningChannelRemove.length) {
+            const set = new Set(prev?.listeningChannelIds ?? [])
+            for (const id of u.listeningChannelAdd) set.add(id)
+            for (const id of u.listeningChannelRemove) set.delete(id)
+            if (set.size > 0) next.listeningChannelIds = [...set]
+          } else if (prev?.listeningChannelIds) {
+            next.listeningChannelIds = prev.listeningChannelIds
           }
 
           // Server sent texture_hash without full texture — request the blob.

@@ -18,6 +18,8 @@ export type GatewayClientMessage =
   | { type: 'connect'; serverId: string; username: string; password?: string; tokens?: string[] }
   | { type: 'disconnect' }
   | { type: 'joinChannel'; channelId: number }
+  | { type: 'listenChannel'; channelId: number }
+  | { type: 'unlistenChannel'; channelId: number }
   | { type: 'textSend'; message: string; channelId?: number; userId?: number }
   | { type: 'queryPermission'; channelId: number }
   | { type: 'ping'; clientTimeMs: number }
@@ -76,4 +78,5 @@ export type UserState = {
   selfMute?: boolean
   selfDeaf?: boolean
   texture?: string
+  listeningChannelIds?: number[]
 }

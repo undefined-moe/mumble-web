@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useGatewayStore } from '../../../src/state/gateway-store'
 import { cn } from '../../../src/ui/cn'
-import { Volume2, Search, X, ChevronDown, Users, Lock } from 'lucide-react'
+import { Volume2, Search, X, ChevronDown, Users, Lock, Headphones } from 'lucide-react'
 import { useT } from '../../../src/i18n'
 
 type TreeNode =
@@ -21,6 +21,8 @@ export function ChannelSidebar() {
   const selectedChannelId = useGatewayStore(s => s.selectedChannelId)
   const selectChannel = useGatewayStore(s => s.selectChannel)
   const joinSelectedChannel = useGatewayStore(s => s.joinSelectedChannel)
+  const listenChannel = useGatewayStore(s => s.listenChannel)
+  const unlistenChannel = useGatewayStore(s => s.unlistenChannel)
   const permissionsByChannelId = useGatewayStore(s => s.permissionsByChannelId)
 
   const [channelSearch, setChannelSearch] = useState('')
@@ -29,6 +31,10 @@ export function ChannelSidebar() {
 
   const root = rootChannelId != null ? channelsById[rootChannelId] : undefined
   const selfChannelId = selfUserId != null ? usersById[selfUserId]?.channelId ?? null : null
+  const selfListeningChannelIds = useMemo(() => {
+    if (selfUserId == null) return new Set<number>()
+    return new Set(usersById[selfUserId]?.listeningChannelIds ?? [])
+  }, [selfUserId, usersById])
 
   const channelTree = useMemo(() => {
     if (rootChannelId == null) return []
@@ -243,6 +249,7 @@ export function ChannelSidebar() {
             if (!ch) return null
             const selected = node.id === selectedChannelId
             const isJoined = node.id === selfChannelId
+            const isListening = selfListeningChannelIds.has(node.id)
             const hasUsers = Object.values(usersById).some(u => u.channelId === node.id)
             const hasChildren = childrenByParent.has(node.id)
             const isCollapsed = collapsedChannels.has(node.id)
@@ -253,7 +260,7 @@ export function ChannelSidebar() {
               <button
                 key={node.id}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                  'group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
                   selected
                     ? 'bg-primary/10 text-primary font-medium'
                     : isJoined
@@ -289,14 +296,38 @@ export function ChannelSidebar() {
                   isJoined ? "text-green-500" : hasUsers ? "opacity-100" : "opacity-50"
                 )} />
                 <span className="truncate">{ch.name || t.channelSidebar.unnamed}</span>
-                {cannotEnter && (
-                  <span className="ml-auto shrink-0" title={t.channelSidebar.noEnterPermission}>
-                    <Lock className="h-3.5 w-3.5 text-red-500" />
-                  </span>
-                )}
-                {isJoined && !cannotEnter && (
-                  <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
-                )}
+                <span className="ml-auto flex shrink-0 items-center gap-1">
+                  {!isJoined && (
+                    <span
+                      role="button"
+                      className={cn(
+                        'rounded-sm p-0.5 transition-colors',
+                        isListening
+                          ? 'text-blue-500 hover:text-blue-400'
+                          : 'text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-foreground'
+                      )}
+                      title={isListening ? t.channelSidebar.stopListening : t.channelSidebar.listen}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (isListening) {
+                          unlistenChannel(node.id)
+                        } else {
+                          listenChannel(node.id)
+                        }
+                      }}
+                    >
+                      <Headphones className="h-3.5 w-3.5" />
+                    </span>
+                  )}
+                  {cannotEnter && (
+                    <span title={t.channelSidebar.noEnterPermission}>
+                      <Lock className="h-3.5 w-3.5 text-red-500" />
+                    </span>
+                  )}
+                  {isJoined && !cannotEnter && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                  )}
+                </span>
               </button>
             )
           })}

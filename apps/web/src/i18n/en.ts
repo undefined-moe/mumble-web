@@ -40,6 +40,9 @@ const en = {
     you: 'You',
     unnamed: '(unnamed)',
     noEnterPermission: 'No enter permission',
+    listen: 'Listen to this channel',
+    stopListening: 'Stop listening',
+    listening: 'Listening',
   },
 
   // ── Chat panel ────────────────────────────────────────────────

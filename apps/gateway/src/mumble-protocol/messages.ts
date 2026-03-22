@@ -311,11 +311,13 @@ export type UserStateMessage = {
   selfDeaf?: boolean
   texture?: Buffer
   textureHash?: Buffer
+  listeningChannelAdd: number[]
+  listeningChannelRemove: number[]
 }
 
 export function decodeUserState(buf: Buffer): UserStateMessage {
   const r = new ProtobufReader(buf)
-  const out: UserStateMessage = {}
+  const out: UserStateMessage = { listeningChannelAdd: [], listeningChannelRemove: [] }
   for (;;) {
     const tag = r.readTag()
     if (!tag) break
@@ -349,6 +351,12 @@ export function decodeUserState(buf: Buffer): UserStateMessage {
         break
       case 17:
         out.textureHash = r.readBytes()
+        break
+      case 21:
+        out.listeningChannelAdd.push(r.readUint32())
+        break
+      case 22:
+        out.listeningChannelRemove.push(r.readUint32())
         break
       default:
         r.skip(tag.wireType)
@@ -514,12 +522,16 @@ export function encodeTextMessage(msg: OutboundTextMessage): Buffer {
 export type OutboundUserState = {
   session?: number
   channelId?: number
+  listeningChannelAdd?: number[]
+  listeningChannelRemove?: number[]
 }
 
 export function encodeUserState(msg: OutboundUserState): Buffer {
   const w = new ProtobufWriter()
   if (msg.session != null) w.uint32(1, msg.session)
   if (msg.channelId != null) w.uint32(5, msg.channelId)
+  for (const id of msg.listeningChannelAdd ?? []) w.uint32(21, id)
+  for (const id of msg.listeningChannelRemove ?? []) w.uint32(22, id)
   return w.finish()
 }
 

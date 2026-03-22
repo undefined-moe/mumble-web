@@ -21,6 +21,7 @@ type UserState = {
   selfMute?: boolean
   selfDeaf?: boolean
   texture?: string
+  listeningChannelIds?: number[]
 }
 
 type ChatItem = {
@@ -163,6 +164,8 @@ type GatewayStore = {
   sendMicEnd: () => void
   selectChannel: (channelId: number) => void
   joinSelectedChannel: () => void
+  listenChannel: (channelId: number) => void
+  unlistenChannel: (channelId: number) => void
   sendTextToSelectedChannel: (message: string) => void
   setVoiceMode: (mode: VoiceMode) => void
   setPttKey: (key: string) => void
@@ -604,6 +607,7 @@ export const useGatewayStore = create<GatewayStore>()(
                 if (u.selfMute != null) entry.selfMute = u.selfMute
                 if (u.selfDeaf != null) entry.selfDeaf = u.selfDeaf
                 if (u.texture != null) entry.texture = u.texture
+                if (u.listeningChannelIds != null && u.listeningChannelIds.length > 0) entry.listeningChannelIds = u.listeningChannelIds
                 usersById[u.id] = entry
               }
 
@@ -678,6 +682,8 @@ export const useGatewayStore = create<GatewayStore>()(
                 if (selfDeaf != null) next.selfDeaf = selfDeaf
                 const texture = u.texture ?? prev?.texture
                 if (texture != null) next.texture = texture
+                const listeningChannelIds = u.listeningChannelIds ?? prev?.listeningChannelIds
+                if (listeningChannelIds != null && listeningChannelIds.length > 0) next.listeningChannelIds = listeningChannelIds
                 return {
                   usersById: { ...s.usersById, [u.id]: next },
                 }
@@ -1004,6 +1010,22 @@ export const useGatewayStore = create<GatewayStore>()(
         if (!ws || ws.readyState !== WebSocket.OPEN || channelId == null) return
         try {
           ws.send(JSON.stringify({ type: 'joinChannel', channelId }))
+        } catch {}
+      },
+
+      listenChannel: (channelId: number) => {
+        const ws = get()._ws
+        if (!ws || ws.readyState !== WebSocket.OPEN) return
+        try {
+          ws.send(JSON.stringify({ type: 'listenChannel', channelId }))
+        } catch {}
+      },
+
+      unlistenChannel: (channelId: number) => {
+        const ws = get()._ws
+        if (!ws || ws.readyState !== WebSocket.OPEN) return
+        try {
+          ws.send(JSON.stringify({ type: 'unlistenChannel', channelId }))
         } catch {}
       },
 

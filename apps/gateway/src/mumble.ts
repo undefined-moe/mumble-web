@@ -142,6 +142,14 @@ export class MumbleSession {
     this._tcp.joinChannel(channelId)
   }
 
+  listenChannel(channelId: number): void {
+    this._tcp.listenChannel(channelId)
+  }
+
+  unlistenChannel(channelId: number): void {
+    this._tcp.unlistenChannel(channelId)
+  }
+
   sendTextMessage(params: { message: string; channelId?: number; userId?: number }): void {
     this._tcp.sendTextMessage(params)
   }
