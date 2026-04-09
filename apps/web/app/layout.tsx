@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { HtmlLangSync } from './html-lang-sync'
+import { VConsoleTrigger } from './vconsole-trigger'
 
 export const metadata: Metadata = {
   title: 'Mumble Web (Next)',
@@ -12,6 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground">
         <HtmlLangSync />
+        <VConsoleTrigger />
         {children}
       </body>
     </html>
