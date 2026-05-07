@@ -28,6 +28,7 @@ export function VoiceControlBar({ voiceRef }: VoiceControlBarProps) {
   const playbackTotalQueuedMs = useGatewayStore(s => s.playbackStats?.totalQueuedMs ?? null)
   const captureRms = useGatewayStore(s => s.captureStats?.rms ?? null)
   const captureSending = useGatewayStore(s => s.captureStats?.sending ?? false)
+  const jitterBufferFrames = useGatewayStore(s => s.jitterBufferFrames)
   const voiceDownlinkJitterMs = useGatewayStore(s => s.metrics.voiceDownlinkJitterMs)
 
   const pttKey = useGatewayStore(s => s.pttKey)
@@ -58,6 +59,10 @@ export function VoiceControlBar({ voiceRef }: VoiceControlBarProps) {
   useEffect(() => {
     voiceRef.current?.setVadHoldTime(vadHoldTimeMs)
   }, [vadHoldTimeMs, voiceRef])
+
+  useEffect(() => {
+    voiceRef.current?.setJitterBufferFrames(jitterBufferFrames)
+  }, [jitterBufferFrames, voiceRef])
 
   useEffect(() => {
     if (!micEnabled) return

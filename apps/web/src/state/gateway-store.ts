@@ -135,6 +135,7 @@ type GatewayStore = {
   vadThreshold: number
   vadHoldTimeMs: number
   opusBitrate: number
+  jitterBufferFrames: number
   uplinkCongestionControlEnabled: boolean
   uplinkMaxBufferedAmountBytes: number
 
@@ -172,6 +173,7 @@ type GatewayStore = {
   setVadThreshold: (val: number) => void
   setVadHoldTimeMs: (val: number) => void
   setOpusBitrate: (bitrate: number) => void
+  setJitterBufferFrames: (frames: number) => void
   setUplinkCongestionControlEnabled: (enabled: boolean) => void
   setUplinkMaxBufferedAmountBytes: (bytes: number) => void
   setMicEchoCancellation: (val: boolean) => void
@@ -283,18 +285,15 @@ export const useGatewayStore = create<GatewayStore>()(
             return
           }
 
-          // Catch up quickly after main-thread stalls by sending a small burst if possible.
-          // This avoids dropping frames on otherwise good networks when encoder output comes in bursts.
-          let sent = 0
-          while (uplink.queue.length > 0 && sent < 5 && ws.bufferedAmount <= maxBuffered) {
-            const next = uplink.queue.shift()
-            if (!next) break
-            try {
-              ws.send(next)
-            } catch {
-              uplink.droppedTotal += 1
-            }
-            sent += 1
+          // Send exactly 1 frame per 20ms tick to produce a smooth, evenly-spaced
+          // stream. Burst-sending (the old approach) caused bursty WebSocket delivery
+          // which made native Mumble clients hear choppy audio.
+          const next = uplink.queue.shift()
+          if (!next) return
+          try {
+            ws.send(next)
+          } catch {
+            uplink.droppedTotal += 1
           }
           updateUplinkStats()
         }, 20)
@@ -330,6 +329,7 @@ export const useGatewayStore = create<GatewayStore>()(
       vadThreshold: 0.02,
       vadHoldTimeMs: 200,
       opusBitrate: 24000,
+      jitterBufferFrames: 3,
       uplinkCongestionControlEnabled: true,
       uplinkMaxBufferedAmountBytes: 256 * 1024,
 
@@ -1051,6 +1051,7 @@ export const useGatewayStore = create<GatewayStore>()(
       setVadThreshold: (val) => set({ vadThreshold: val }),
       setVadHoldTimeMs: (val) => set({ vadHoldTimeMs: val }),
       setOpusBitrate: (bitrate) => set({ opusBitrate: bitrate }),
+      setJitterBufferFrames: (frames) => set({ jitterBufferFrames: frames }),
       setUplinkCongestionControlEnabled: (enabled) => set({ uplinkCongestionControlEnabled: enabled }),
       setUplinkMaxBufferedAmountBytes: (bytes) => set({ uplinkMaxBufferedAmountBytes: bytes }),
       setMicEchoCancellation: (val) => set({ micEchoCancellation: val }),
@@ -1107,6 +1108,7 @@ export const useGatewayStore = create<GatewayStore>()(
         opusBitrate: state.opusBitrate,
         uplinkCongestionControlEnabled: state.uplinkCongestionControlEnabled,
         uplinkMaxBufferedAmountBytes: state.uplinkMaxBufferedAmountBytes,
+        jitterBufferFrames: state.jitterBufferFrames,
         micEchoCancellation: state.micEchoCancellation,
         micNoiseSuppression: state.micNoiseSuppression,
         micAutoGainControl: state.micAutoGainControl,

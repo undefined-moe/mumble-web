@@ -164,6 +164,7 @@ export default function AppPage() {
     engine.setMode(useGatewayStore.getState().voiceMode)
     engine.setVadThreshold(useGatewayStore.getState().vadThreshold)
     engine.setVadHoldTime(useGatewayStore.getState().vadHoldTimeMs)
+    engine.setJitterBufferFrames(useGatewayStore.getState().jitterBufferFrames)
 
     setVoiceSink((frame) => {
       if (!canUseWebCodecsOpus()) return

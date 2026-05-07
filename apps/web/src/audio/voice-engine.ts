@@ -56,6 +56,12 @@ export class VoiceEngine {
     }
   }
 
+  setJitterBufferFrames(frames: number) {
+    if (this._playbackNode) {
+      this._playbackNode.port.postMessage({ type: 'jitterConfig', frames })
+    }
+  }
+
   async enableAudio(): Promise<void> {
     if (this._audioContext && this._playbackNode) {
       await this._audioContext.resume()

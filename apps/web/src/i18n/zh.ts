@@ -113,6 +113,11 @@ const zh: Translations = {
     maxWsSendBuffer: '\u6700\u5927 WS \u53D1\u9001\u7F13\u51B2',
     maxWsSendBufferDesc: '\u7F13\u51B2\u8D85\u8FC7\u6B64\u9608\u503C\u65F6\u4E22\u5F03/\u6682\u505C\u8BED\u97F3\u5E27\u3002',
 
+    // Playback (Jitter Buffer)
+    playbackTitle: '\u64AD\u653E\uFF08\u6296\u52A8\u7F13\u51B2\uFF09',
+    jitterBuffer: '\u6296\u52A8\u7F13\u51B2',
+    jitterBufferDesc: '\u64AD\u653E\u524D\u7F13\u5B58\u97F3\u9891\u5E27\u4EE5\u5438\u6536\u7F51\u7EDC\u6296\u52A8\u3002\u503C\u8D8A\u5927\u8D8A\u5E73\u6ED1\uFF0C\u4F46\u5EF6\u8FDF\u4E5F\u8D8A\u9AD8\u3002',
+
     // Audio Quality
     audioQualityTitle: '\u97F3\u9891\u8D28\u91CF',
     opusBitrate: 'Opus \u7801\u7387',

@@ -115,6 +115,11 @@ const en = {
     maxWsSendBuffer: 'Max WS send buffer',
     maxWsSendBufferDesc: 'Drop/hold voice frames when buffered exceeds this threshold.',
 
+    // Playback (Jitter Buffer)
+    playbackTitle: 'Playback (Jitter Buffer)',
+    jitterBuffer: 'Jitter buffer',
+    jitterBufferDesc: 'Buffer audio frames before playback to absorb network jitter. Higher = smoother but more delay.',
+
     // Audio Quality
     audioQualityTitle: 'Audio Quality',
     opusBitrate: 'Opus bitrate',

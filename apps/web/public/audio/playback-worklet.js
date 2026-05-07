@@ -1,3 +1,7 @@
+// Jitter buffer config: number of 20ms Opus frames to buffer before playback starts.
+// 3 frames = 60ms initial latency — good trade-off for typical network jitter.
+const JITTER_BUFFER_FRAMES = 3
+
 class MumblePlaybackProcessor extends AudioWorkletProcessor {
   constructor() {
     super()
@@ -6,7 +10,16 @@ class MumblePlaybackProcessor extends AudioWorkletProcessor {
 
     this.port.onmessage = (event) => {
       const msg = event.data
-      if (!msg || msg.type !== 'pcm') return
+      if (!msg) return
+
+      if (msg.type === 'jitterConfig') {
+        // Allow runtime tuning: { type: 'jitterConfig', frames: 2..6 }
+        const f = Number(msg.frames)
+        if (f >= 0 && f <= 20) this._jitterFrames = f
+        return
+      }
+
+      if (msg.type !== 'pcm') return
 
       const userId = Number(msg.userId) >>> 0
       const channels = Number(msg.channels) || 1
@@ -15,7 +28,12 @@ class MumblePlaybackProcessor extends AudioWorkletProcessor {
       const pcm = new Float32Array(msg.pcm)
       let stream = this._streams.get(userId)
       if (!stream) {
-        stream = { queue: [], current: null, lastActive: currentTime }
+        stream = {
+          queue: [],
+          current: null,
+          lastActive: currentTime,
+          buffering: true // start in buffering state
+        }
         this._streams.set(userId, stream)
       }
 
@@ -27,6 +45,8 @@ class MumblePlaybackProcessor extends AudioWorkletProcessor {
         stream.queue.splice(0, stream.queue.length - 200)
       }
     }
+
+    this._jitterFrames = JITTER_BUFFER_FRAMES
   }
 
   process(_inputs, outputs) {
@@ -35,18 +55,34 @@ class MumblePlaybackProcessor extends AudioWorkletProcessor {
 
     const outChannels = output.length
     const frames = output[0].length
+    const targetFrames = this._jitterFrames
 
     for (let ch = 0; ch < outChannels; ch++) {
       output[ch].fill(0)
     }
 
     for (const [userId, stream] of this._streams) {
+      // --- Jitter buffer gate ---
+      if (stream.buffering) {
+        // Count queued items (each is roughly one 20ms Opus frame)
+        const ready = stream.queue.length + (stream.current ? 1 : 0)
+        if (ready < targetFrames) {
+          // Not enough buffered yet — output silence for this stream
+          continue
+        }
+        // Enough frames buffered, start playback
+        stream.buffering = false
+      }
+
       if (!stream.current && stream.queue.length > 0) {
         stream.current = stream.queue.shift()
       }
 
       let item = stream.current
       if (!item) {
+        // Queue ran dry during playback — re-enter buffering state
+        // so next burst of packets gets smoothed again.
+        stream.buffering = true
         if (currentTime - stream.lastActive > 10) {
           this._streams.delete(userId)
         }

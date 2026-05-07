@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './card'
 import { Input } from './input'
 import { useGatewayStore } from '../../src/state/gateway-store'
-import { Mic, Shield, Wifi, AudioWaveform, Keyboard } from 'lucide-react'
+import { Mic, Shield, Wifi, AudioWaveform, Keyboard, Headphones } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog'
 import { formatKeyLabel } from '../../src/audio/use-ptt-keyboard'
 import { useT, format } from '../../src/i18n'
@@ -43,6 +43,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const setRnnoiseEnabled = useGatewayStore(s => s.setRnnoiseEnabled)
   const pttKey = useGatewayStore(s => s.pttKey)
   const setPttKey = useGatewayStore(s => s.setPttKey)
+  const jitterBufferFrames = useGatewayStore(s => s.jitterBufferFrames)
+  const setJitterBufferFrames = useGatewayStore(s => s.setJitterBufferFrames)
   const selectedInputDeviceId = useGatewayStore(s => s.selectedInputDeviceId)
   const setSelectedInputDeviceId = useGatewayStore(s => s.setSelectedInputDeviceId)
 
@@ -205,6 +207,39 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     }}
                   />
                   <span className="text-xs text-muted-foreground">KB</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Headphones className="h-4 w-4 text-primary" />
+                {t.settings.playbackTitle}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">{t.settings.jitterBuffer}</div>
+                    <div className="text-xs text-muted-foreground">{t.settings.jitterBufferDesc}</div>
+                  </div>
+                  <div className="text-sm font-mono">{jitterBufferFrames * 20} ms</div>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={10}
+                  step={1}
+                  value={jitterBufferFrames}
+                  onChange={(e) => setJitterBufferFrames(clampNumber(Number(e.target.value), 0, 10))}
+                  className="w-full h-2 accent-primary bg-accent rounded-full appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>0 ms</span>
+                  <span>200 ms</span>
                 </div>
               </div>
             </CardContent>
