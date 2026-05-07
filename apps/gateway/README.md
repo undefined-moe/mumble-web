@@ -4,7 +4,7 @@ WebSocket 网关（自托管），负责连接白名单 Mumble 服务器并向�
 
 ## 配置
 
-- 复制 `config/servers.example.json` 为 `config/servers.json` 并填入白名单服务器。
+- 复制 `config/servers.example.json` 为 `config/servers.json` 并填入白名单服务器；使用 `SERVERS_CONFIG_PATH` 环境变量指定配置文件路径。
 - 默认监听端口：`64737`（可用 `PORT` 覆盖）。
 
 ## 可选：开启 COOP/COEP（SharedArrayBuffer）
