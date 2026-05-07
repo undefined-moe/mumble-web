@@ -5,9 +5,8 @@ import { useGatewayStore } from '../../../src/state/gateway-store'
 import { cn } from '../../../src/ui/cn'
 import { Button } from '../../../components/ui/button'
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react'
-import type { VoiceEngine } from '../../../src/audio/voice-engine'
-import { usePttKeyboard, formatKeyLabel } from '../../../src/audio/use-ptt-keyboard'
-import { canUseWebCodecsOpus } from '../../../src/audio/webcodecs-opus'
+import type { VoiceEngine } from '@mumble-web/sdk'
+import { usePttKeyboard, formatKeyLabel, canUseWebCodecsOpus } from '@mumble-web/sdk'
 import { useT, format } from '../../../src/i18n'
 
 interface VoiceControlBarProps {
@@ -37,7 +36,7 @@ export function VoiceControlBar({ voiceRef }: VoiceControlBarProps) {
   const [muted, setMuted] = useState(false)
   const webCodecsAvailable = canUseWebCodecsOpus()
 
-  usePttKeyboard(voiceRef)
+  usePttKeyboard({ voiceRef, pttKey, voiceMode })
 
   useEffect(() => {
     if (status === 'connected') {

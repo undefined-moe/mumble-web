@@ -3,8 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useGatewayStore } from '../../src/state/gateway-store'
-import { VoiceEngine } from '../../src/audio/voice-engine'
-import { canUseWebCodecsOpus, createWebCodecsOpusDecoder, createWebCodecsOpusEncoder } from '../../src/audio/webcodecs-opus'
+import { VoiceEngine, canUseWebCodecsOpus, createWebCodecsOpusDecoder, createWebCodecsOpusEncoder } from '@mumble-web/sdk'
 import { Rnnoise, type DenoiseState } from '@shiguredo/rnnoise-wasm'
 import { isPipSupported } from '../../components/ui/overlay-panel'
 
